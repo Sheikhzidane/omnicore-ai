@@ -63,11 +63,11 @@ export default function GodView({ todos }: Props) {
   useEffect(() => {
     const supabase = createClient()
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(supabase.from('god_status') as any).select('*').eq('id', 1).single().then(({ data }: { data: any }) => {
-      if (data?.thought) setThought(data.thought as string)
-      if (data?.meta)    setMeta(data.meta as GodMeta)
-      if (data?.intent)  setIntent(data.intent as GodIntent)
+    ;supabase.from('god_status').select('*').eq('id', 1).single().then(({ data }) => {
+      // meta/intent are free-form jsonb written by the god agent
+      if (data?.thought) setThought(data.thought)
+      if (data?.meta)    setMeta(data.meta as unknown as GodMeta)
+      if (data?.intent)  setIntent(data.intent as unknown as GodIntent)
     })
 
     // Unique channel name per mount so hot-reload + tab navigation don't

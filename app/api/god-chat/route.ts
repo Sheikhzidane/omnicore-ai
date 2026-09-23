@@ -1,3 +1,4 @@
+import { requirePlatformAdminApi } from '@/lib/auth/api'
 import { NextRequest, NextResponse } from 'next/server'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,6 +15,9 @@ export const dynamic = 'force-dynamic'
  * not deep reasoning. Target: <3s round-trip.
  */
 export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.god-chat.post')
+  if (!authz.ok) return authz.response
+
   const body = await req.json().catch(() => null) as { question?: string } | null
   const question = body?.question?.trim()
   if (!question) return NextResponse.json({ error: 'question required' }, { status: 400 })

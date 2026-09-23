@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { NextResponse } from 'next/server'
@@ -6,7 +8,10 @@ const REVENUE_LOG = join(process.cwd(), 'scripts', 'revenue-log.json')
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   try {
     if (!existsSync(REVENUE_LOG)) {
       return NextResponse.json({

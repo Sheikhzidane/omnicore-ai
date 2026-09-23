@@ -1,3 +1,4 @@
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
@@ -11,6 +12,9 @@ import Stripe from 'stripe'
 // Without STRIPE_SECRET_KEY the route returns 503 — safe to leave unset
 // until you're ready to skip Gumroad's fee.
 export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.checkout.post')
+  if (!authz.ok) return authz.response
+
   const key = process.env.STRIPE_SECRET_KEY
   if (!key) {
     return NextResponse.json({
@@ -48,7 +52,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   return NextResponse.json({
     configured: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID),
     hint: 'To activate: set STRIPE_SECRET_KEY + STRIPE_PRICE_ID in .env.local, then POST to this route.',

@@ -13,6 +13,11 @@ import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { assertOpsAgentsEnabled } from './lib-agent-permissions.mjs'
+
+// Kill switch: ops agents are off unless OPS_AGENTS_ENABLED=true.
+assertOpsAgentsEnabled('seo-content-loop')
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const GEN       = join(__dirname, 'seo-topic-generator.mjs')
 

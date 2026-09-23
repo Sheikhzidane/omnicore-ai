@@ -1,7 +1,7 @@
 import type { Todo } from '@/types/todos'
 
 /**
- * Canned dashboard data for first-time visitors who hit `/?demo=1`. Lets the
+ * Canned dashboard data for first-time visitors who hit `/ops?demo=1`. Lets the
  * homepage look populated without a real Supabase connection — important
  * because otherwise the dashboard appears broken to anyone shared the URL.
  */
@@ -12,6 +12,8 @@ export const DEMO_TODOS: Todo[] = [
     updated_at: new Date(Date.now() - 12 * 60_000).toISOString(),
     created_at: new Date(Date.now() - 2 * 3_600_000).toISOString(),
     is_boss: false, deadline: null, retry_count: 0, parent_task_id: null,
+    description: null,
+    metadata: null,
     task_category: 'ui',
     comments: [
       { agent: 'god',            at: new Date(Date.now() - 2 * 3_600_000).toISOString(), text: 'Routing to ui-specialist; matches keyword "topbar"' },
@@ -25,6 +27,8 @@ export const DEMO_TODOS: Todo[] = [
     updated_at: new Date(Date.now() - 90_000).toISOString(),
     created_at: new Date(Date.now() - 25 * 60_000).toISOString(),
     is_boss: true, deadline: null, retry_count: 0, parent_task_id: null,
+    description: null,
+    metadata: null,
     task_category: 'analysis',
     comments: [
       { agent: 'god',                  at: new Date(Date.now() - 25 * 60_000).toISOString(), text: 'Daily spend hit $4.20 — investigation needed' },
@@ -37,6 +41,8 @@ export const DEMO_TODOS: Todo[] = [
     updated_at: new Date(Date.now() - 4 * 3_600_000).toISOString(),
     created_at: new Date(Date.now() - 5 * 3_600_000).toISOString(),
     is_boss: false, deadline: null, retry_count: 2, parent_task_id: null,
+    description: null,
+    metadata: null,
     task_category: 'db',
     comments: [
       { agent: 'db-specialist', at: new Date(Date.now() - 4.5 * 3_600_000).toISOString(), text: 'Migration applied. Rolling forward indexes…' },
@@ -49,6 +55,8 @@ export const DEMO_TODOS: Todo[] = [
     updated_at: new Date(Date.now() - 20 * 60_000).toISOString(),
     created_at: new Date(Date.now() - 20 * 60_000).toISOString(),
     is_boss: false, deadline: null, retry_count: 0, parent_task_id: null,
+    description: null,
+    metadata: null,
     task_category: 'infra',
     comments: [],
   },
@@ -58,6 +66,8 @@ export const DEMO_TODOS: Todo[] = [
     updated_at: new Date(Date.now() - 47 * 60_000).toISOString(),
     created_at: new Date(Date.now() - 67 * 60_000).toISOString(),
     is_boss: false, deadline: null, retry_count: 0, parent_task_id: null,
+    description: null,
+    metadata: null,
     task_category: 'ui',
     comments: [
       { agent: 'ui-specialist', at: new Date(Date.now() - 47 * 60_000).toISOString(), text: '✓ Created /topics/claude-prompt-caching-guide with AdSense + Amazon + Kit CTA. Submitted to IndexNow.' },
@@ -69,6 +79,8 @@ export const DEMO_TODOS: Todo[] = [
     updated_at: new Date(Date.now() - 8 * 3_600_000).toISOString(),
     created_at: new Date(Date.now() - 9 * 3_600_000).toISOString(),
     is_boss: false, deadline: null, retry_count: 1, parent_task_id: null,
+    description: null,
+    metadata: null,
     task_category: 'infra',
     comments: [
       { agent: 'infra-specialist', at: new Date(Date.now() - 9 * 3_600_000).toISOString(), text: 'Initial pass: ReadableStream wired up. Tests failing on backpressure.' },
@@ -81,6 +93,8 @@ export const DEMO_TODOS: Todo[] = [
     updated_at: new Date(Date.now() - 18 * 3_600_000).toISOString(),
     created_at: new Date(Date.now() - 20 * 3_600_000).toISOString(),
     is_boss: false, deadline: null, retry_count: 0, parent_task_id: null,
+    description: null,
+    metadata: null,
     task_category: 'ui',
     comments: [
       { agent: 'ui-specialist', at: new Date(Date.now() - 18 * 3_600_000).toISOString(), text: '✓ Added LatencyDistribution.tsx with p50/p95/p99 markers' },

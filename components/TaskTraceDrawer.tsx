@@ -162,7 +162,7 @@ function WhyDidThisFail({ todo }: { todo: Todo }) {
       {explanation ? (
         <div className="text-[11px] font-mono text-slate-300 leading-relaxed whitespace-pre-wrap">{explanation}</div>
       ) : error ? (
-        <div className="text-[11px] font-mono text-red-400">Couldn't ask God: {error}</div>
+        <div className="text-[11px] font-mono text-red-400">Couldn&apos;t ask God: {error}</div>
       ) : (
         <button
           onClick={ask}

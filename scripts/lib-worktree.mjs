@@ -26,7 +26,8 @@
 //   - Max 8 concurrent worktrees — rejects new ones above that
 //   - Stale worktrees (>2h) get GC'd on next prepareWorkspace() call
 
-import { execSync } from 'node:child_process'
+import { execSync, execFileSync } from 'node:child_process'
+import { violations } from './lib-agent-permissions.mjs'
 import { existsSync, readdirSync, statSync, rmSync, symlinkSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -122,8 +123,13 @@ export async function commitWorkspace(wsPath, message, projectRoot) {
     const status = shQuiet('git status --porcelain', wsPath)
     if (!status) return { committed: false, reason: 'no-changes' }
 
-    sh('git add -A', wsPath)
-    sh(`git commit -m "${String(message).replace(/"/g, '\\"')}"`, wsPath)
+    // Permission boundary: refuse if any changed path is protected.
+    const changed = execFileSync('git', ['status', '--porcelain', '-z', '--no-renames', '--untracked-files=all'], { cwd: wsPath, encoding: 'utf8' })
+      .split('\0').filter(Boolean).map(l => l.slice(3))
+    const blocked = violations(changed, wsPath)
+    if (blocked.length) return { committed: false, reason: `permission-denied: ${blocked.map(b => b.path ?? b.reason).join(', ')}` }
+    execFileSync('git', ['add', '--', ...changed], { cwd: wsPath, stdio: 'pipe' })
+    execFileSync('git', ['commit', '-m', String(message).slice(0, 200)], { cwd: wsPath, stdio: 'pipe' })
 
     // Fast-forward merge into main from the project root
     const branch = shQuiet('git rev-parse --abbrev-ref HEAD', wsPath)

@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import { execSync } from 'node:child_process'
 
@@ -8,8 +10,8 @@ export const dynamic = 'force-dynamic'
  * Safety net: ONE click to stop God, all ruflo specialists, revenue, poster.
  * The Next.js dev server keeps running so the dashboard stays visible.
  *
- * SECURITY: gated by PANIC_TOKEN env var. Without the token set, the
- * endpoint rejects. Request must include the token as a header.
+ * SECURITY: platform-admin session required and every action is written to
+ * audit_log before it runs (requirePlatformAdminApi).
  */
 const CONTROLLED = ['god', 'ruflo-agents', 'ruflo-orchestrator', 'revenue', 'promote', 'god-dreams', 'god-poster', 'watchdog', 'jarvis-briefings']
 
@@ -23,11 +25,13 @@ function pm2(action: 'stop' | 'start' | 'restart', target: string): { ok: boolea
   }
 }
 
-export async function POST(req: Request) {
-  const token = req.headers.get('x-panic-token')
-  const expected = process.env.PANIC_TOKEN
-  if (!expected) return NextResponse.json({ error: 'PANIC_TOKEN not set in env' }, { status: 501 })
-  if (token !== expected) return NextResponse.json({ error: 'bad-token' }, { status: 401 })
+export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.panic.post')
+  if (!authz.ok) return authz.response
+
+  // Authorised by the platform-admin session + audit entry above. (The old
+  // design required operators to paste PANIC_TOKEN into browser localStorage,
+  // exposing a server secret to any XSS — removed.)
 
   let body: { action?: string; target?: string } = {}
   try { body = await req.json() } catch {}
@@ -49,15 +53,18 @@ export async function POST(req: Request) {
   })
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   try {
     const out = execSync('pm2 jlist', { encoding: 'utf8', timeout: 5_000 })
     const list = JSON.parse(out) as Array<{ name: string; pm2_env?: { status?: string } }>
     return NextResponse.json({
-      configured: Boolean(process.env.PANIC_TOKEN),
+      configured: true,
       processes:  list.map(p => ({ name: p.name, status: p.pm2_env?.status ?? 'unknown' })),
     })
   } catch (e) {
-    return NextResponse.json({ configured: Boolean(process.env.PANIC_TOKEN), processes: [], error: (e as Error).message?.slice(0, 100) })
+    return NextResponse.json({ configured: true, processes: [], error: (e as Error).message?.slice(0, 100) })
   }
 }

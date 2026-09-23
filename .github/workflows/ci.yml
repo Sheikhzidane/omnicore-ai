@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'god/**']
+    branches: [main, 'claude/**']
   pull_request:
     branches: [main]
 
@@ -16,34 +16,60 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Typecheck
-        # BLOCKING — used to be `|| echo warning` which let TS errors slip
-        # through and silently break Vercel for 3 commits in a row. We
-        # tolerate ONE long-standing noisy file via grep so unrelated
-        # work isn't held hostage to it.
-        run: |
-          set -o pipefail
-          npx tsc --noEmit 2>&1 | tee /tmp/tsc.log || true
-          if grep -v 'scripts/batch-classify-with-audit-check.ts' /tmp/tsc.log | grep -E ': error '; then
-            echo "::error::TypeScript errors above — failing CI"
-            exit 1
-          fi
+        run: npm run typecheck
 
       - name: Lint
-        run: npm run lint || echo "::warning::Lint warnings present (non-blocking)"
+        run: npm run lint
+
+      - name: Test
+        run: npm test
 
       - name: Build
-        # BLOCKING — catches build-time failures the typecheck misses
-        # (route handler signatures, dynamic-import errors, etc).
+        # Placeholder values only: the build needs no real secrets, and real
+        # service-role keys must never be handed to CI build steps.
         env:
-          NEXT_PUBLIC_SUPABASE_URL:      ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_URL:                  ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY:     ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+          NEXT_TELEMETRY_DISABLED: '1'
         run: npm run build
+
+      - name: Secret exposure check
+        # Fails if a server secret's name is read by client code, or its
+        # (placeholder) value appears in the client bundle.
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+        run: npm run check:secrets
+
+  database:
+    # Applies every migration to a disposable Postgres and runs the RLS /
+    # workspace-isolation suite. Never touches a real Supabase project.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Migration + RLS tests
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: npm run test:db

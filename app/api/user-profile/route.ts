@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { readFileSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { NextResponse } from 'next/server'
@@ -6,7 +8,10 @@ const PROFILE_PATH = join(process.cwd(), 'scripts', 'user-profile.json')
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   try {
     if (!existsSync(PROFILE_PATH)) return NextResponse.json({ inferred: null, updated_at: null })
     const data = JSON.parse(readFileSync(PROFILE_PATH, 'utf8'))
@@ -17,7 +22,10 @@ export async function GET() {
 }
 
 /** Minimal PATCH: user can correct an inferred fact from the dashboard. */
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.user-profile.patch')
+  if (!authz.ok) return authz.response
+
   try {
     const body  = await req.json()
     const patch = body?.patch

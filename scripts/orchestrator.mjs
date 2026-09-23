@@ -14,6 +14,11 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
+import { assertOpsAgentsEnabled } from './lib-agent-permissions.mjs'
+
+// Kill switch: ops agents are off unless OPS_AGENTS_ENABLED=true.
+assertOpsAgentsEnabled('orchestrator')
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // ── Load env FIRST so ANTHROPIC_API_KEY is available ─────────────────────

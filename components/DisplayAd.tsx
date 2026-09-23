@@ -37,8 +37,8 @@ export default function DisplayAd({
   useEffect(() => {
     if (!enabled) return
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const adsbygoogle = (window as any).adsbygoogle ?? ((window as any).adsbygoogle = [])
+      const w = window as Window & { adsbygoogle?: unknown[] }
+      const adsbygoogle = w.adsbygoogle ?? (w.adsbygoogle = [])
       adsbygoogle.push({})
     } catch {}
   }, [enabled])

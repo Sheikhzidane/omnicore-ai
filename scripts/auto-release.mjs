@@ -17,6 +17,12 @@ import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+
+// Permanently disabled (Phase 1 security lockdown): tagging, pushing and publishing releases is a forbidden agent operation (git.release).
+// Code kept for reference only. See docs/AGENT_PERMISSIONS.md.
+console.log('[auto-release] disabled: tagging, pushing and publishing releases is a forbidden agent operation (git.release).')
+process.exit(0)
+
 const __dirname    = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = resolve(__dirname, '..')
 

@@ -85,20 +85,18 @@ function useLastTrace(taskId: string) {
 
   useEffect(() => {
     const supabase = createClient()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(supabase.from('traces') as any)
+    ;supabase.from('traces')
       .select('id,tool_name,input_summary,is_error,duration_ms')
       .eq('task_id', taskId)
       .order('created_at', { ascending: false })
       .limit(1)
-      .then(({ data }: { data: Trace[] | null }) => {
+      .then(({ data }) => {
         if (data?.[0]) setLast(data[0])
       })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(supabase.from('traces') as any)
+    ;supabase.from('traces')
       .select('id', { count: 'exact', head: true })
       .eq('task_id', taskId)
-      .then(({ count: c }: { count: number }) => setCount(c ?? 0))
+      .then(({ count: c }) => setCount(c ?? 0))
 
     // Unique channel name so rapid task switches don't collide with the previous channel
     const ch = supabase.channel(`act-${taskId}-${Date.now()}`)

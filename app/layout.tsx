@@ -1,17 +1,10 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
 import './globals.css'
-import { initPronounDetector } from '@/lib/pronoun-detector'
-
-// Initialize pronoun detector on server startup to log 'I' or 'me' mentions
-// in the next 5 console.log outputs
-if (typeof window === 'undefined') {
-  initPronounDetector()
-}
 
 export const metadata: Metadata = {
-  title: 'TASK//MATRIX',
-  description: 'Real-time agent task monitor',
+  title: 'OmniCore — AI Influencer OS',
+  description: 'Operating system for AI influencer characters',
 }
 
 // Analytics scripts are rendered only if their respective env vars are set.

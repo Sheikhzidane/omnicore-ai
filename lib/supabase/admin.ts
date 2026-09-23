@@ -1,5 +1,6 @@
+import 'server-only'
 import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/todos'
+import type { Database } from '@/types/database'
 
 /**
  * Server-side admin client using the SUPABASE_SERVICE_ROLE_KEY.

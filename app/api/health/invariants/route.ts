@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import { readFileSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -16,7 +18,10 @@ export const dynamic = 'force-dynamic'
  */
 const HOUR = 3_600_000
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const checks: Array<{ name: string; ok: boolean; detail: string }> = []
 
   // 1. God roadmap should have ≥1 active goal at all times

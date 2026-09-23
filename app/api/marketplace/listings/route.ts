@@ -1,3 +1,4 @@
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse, NextRequest } from 'next/server'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -48,7 +49,10 @@ async function saveStatuses(statuses: Record<string, Submission>) {
 }
 
 // GET — return manifest + current per-marketplace status
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const manifest = await loadManifest()
   if (!manifest) {
     return NextResponse.json({
@@ -75,6 +79,9 @@ export async function GET() {
 
 // POST — update submission state, or read listing copy for a specific marketplace
 export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.marketplace.listings.post')
+  if (!authz.ok) return authz.response
+
   const body = await req.json() as {
     action?: 'mark_submitted' | 'mark_live' | 'mark_rejected' | 'reset' | 'get_copy'
     slug?:   string

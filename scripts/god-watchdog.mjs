@@ -12,6 +12,11 @@ import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
 import { createClient } from '@supabase/supabase-js'
 
+import { assertOpsAgentsEnabled } from './lib-agent-permissions.mjs'
+
+// Kill switch: ops agents are off unless OPS_AGENTS_ENABLED=true.
+assertOpsAgentsEnabled('god-watchdog')
+
 const __filename   = fileURLToPath(import.meta.url)
 const __dirname    = dirname(__filename)
 const PROJECT_ROOT = join(__dirname, '..')

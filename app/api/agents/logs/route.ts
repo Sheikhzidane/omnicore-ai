@@ -1,3 +1,4 @@
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -61,6 +62,9 @@ function classify(source: string, text: string): { category: string; level: Even
 }
 
 export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const n = Math.min(500, Math.max(20, Number(req.nextUrl.searchParams.get('n') ?? 200)))
   const events: Event[] = []
 

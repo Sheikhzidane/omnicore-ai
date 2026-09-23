@@ -1,22 +1,26 @@
-name: Nightly Supabase backup
+name: Supabase backup (manual)
+
+# SECURITY (Phase 1): this workflow used to run nightly and COMMIT the dump
+# (including subscriber email addresses) into the git repository and push it.
+# Database contents must never be committed. It now runs only on demand and
+# stores the dump as a short-lived, access-controlled workflow artifact.
+# For production, prefer Supabase's managed backups / PITR.
 
 on:
-  schedule:
-    # 04:00 UTC every day (low-traffic window)
-    - cron: '0 4 * * *'
-  workflow_dispatch: {}      # allow manual runs from the Actions tab
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
 
 jobs:
   dump:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write        # lets the action commit the backup file
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -28,14 +32,10 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/backup-supabase.mjs
 
-      - name: Commit snapshot
-        run: |
-          git config user.name  "pantheon-backup-bot"
-          git config user.email "backup@autonomous.local"
-          git add backups/
-          if git diff --staged --quiet; then
-            echo "No changes to commit — backup unchanged since last run"
-          else
-            git commit -m "chore(backup): nightly snapshot $(date -u +%Y-%m-%d)"
-            git push
-          fi
+      - name: Upload snapshot (private artifact, 7-day retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ github.run_id }}
+          path: backups/*.json
+          retention-days: 7
+          if-no-files-found: error

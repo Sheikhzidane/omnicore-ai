@@ -19,7 +19,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
-import { execSync } from 'node:child_process'
+import { execSync, execFileSync } from 'node:child_process'
+import { assertOpsAgentsEnabled, checkWritePath, checkReadPath, checkOperation, violations } from './lib-agent-permissions.mjs'
 import { notify, shouldNotify } from './lib-notify.mjs'
 import { pruneWisdom } from './god/memory.mjs'
 import { publishSharedBatch } from './lib-shared-memory.mjs'
@@ -46,6 +47,9 @@ try {
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODELS = { sonnet: 'claude-sonnet-4-6', haiku: 'claude-haiku-4-5-20251001' }
+
+// Kill switch: ops agents are off unless OPS_AGENTS_ENABLED=true.
+assertOpsAgentsEnabled('god-agent')
 
 const supabase = createClient(
   process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -212,8 +216,14 @@ async function autoCommit({ cycle, source, summary, files }) {
     gitExec(`git checkout -b ${targetBranch}`)
   }
 
-  const list = files.map(f => `"${f.replace(/"/g, '\\"')}"`).join(' ')
-  gitExec(`git add ${list}`)
+  // Permission boundary: refuse the whole commit if any file is protected.
+  const blocked = violations(files, PROJECT_ROOT)
+  if (blocked.length) {
+    console.log(`[GOD-GIT] refused — protected paths: ${blocked.map(b => b.path ?? b.reason).join(', ')}`)
+    if (useBranch) gitExec(`git checkout ${branchBefore}`)
+    return null
+  }
+  try { execFileSync('git', ['add', '--', ...files], { cwd: PROJECT_ROOT, stdio: 'pipe' }) } catch { return null }
 
   const hasChanges = gitExec('git diff --cached --quiet; echo $?') !== '0'
   if (!hasChanges) {
@@ -223,7 +233,9 @@ async function autoCommit({ cycle, source, summary, files }) {
 
   const subjectPrefix = source === 'dashboard' ? '[god-edit]' : '[god-agent]'
   const safeSummary = summary.replace(/"/g, "'").slice(0, 72)
-  gitExec(`git commit -m "${subjectPrefix} cycle ${cycle}: ${safeSummary}"`)
+  try {
+    execFileSync('git', ['commit', '-m', `${subjectPrefix} cycle ${cycle}: ${safeSummary}`], { cwd: PROJECT_ROOT, stdio: 'pipe' })
+  } catch { return null }
   const sha = gitExec('git rev-parse --short HEAD')
 
   // Record pending verification — watchdog checks success rate 20 tasks later
@@ -267,29 +279,12 @@ async function autoCommit({ cycle, source, summary, files }) {
     }
   }
 
-  // Push if remote + token configured
-  let prUrl = null
-  if (process.env.GITHUB_REPO_URL && process.env.GITHUB_TOKEN) {
-    const remote = gitExec('git remote get-url origin')
-    if (!remote) {
-      const authed = process.env.GITHUB_REPO_URL.replace('https://', `https://${process.env.GITHUB_TOKEN}@`)
-      gitExec(`git remote add origin ${authed}`)
-    }
-    gitExec(`git push origin ${targetBranch} --set-upstream`)
-
-    // Open PR if in PR mode
-    if (useBranch && process.env.GITHUB_REPO) {
-      prUrl = await openPullRequest({
-        repo:   process.env.GITHUB_REPO,
-        token:  process.env.GITHUB_TOKEN,
-        head:   targetBranch,
-        base:   branchBefore,
-        title:  `[god] cycle ${cycle}: ${safeSummary}`,
-        body:   buildPrBody({ cycle, source, files, summary, sha }),
-      })
-      if (prUrl) console.log(`[GOD-PR] ${prUrl}`)
-    }
-  }
+  // Pushing, remote rewriting and PR creation are disabled for agents
+  // (lib-agent-permissions: git.push). The previous implementation embedded
+  // GITHUB_TOKEN in the remote URL, persisting it in .git/config. A human
+  // reviews and pushes agent commits.
+  const prUrl = null
+  if (process.env.GITHUB_TOKEN) console.log(`[GOD-GIT] ${checkOperation('git.push').reason} — commit left local for human review`)
 
   if (useBranch) gitExec(`git checkout ${branchBefore}`)
 
@@ -1515,8 +1510,10 @@ async function decree(tasks, existingTodos, agentStats, categoryStats) {
     const bestPool    = pickAgent(task.title, agentStats, categoryStats)
     const agentPrefix = bestPool ?? null
 
-    const autoApprove = process.env.GOD_AUTO_APPROVE === 'true'
-    const status = autoApprove ? 'pending' : 'proposed'
+    // GOD_AUTO_APPROVE removed (Phase 1): agent-created tasks always wait for
+    // a human in the Task Inbox — agents cannot approve their own work.
+    const autoApprove = false
+    const status = 'proposed'
 
     const { error } = await supabase.from('todos').insert({
       title:          task.title,
@@ -1573,6 +1570,8 @@ const DASHBOARD_TOOLS = [
 function safeRead(p) {
   const abs = resolve(PROJECT_ROOT, p)
   if (!abs.startsWith(PROJECT_ROOT)) throw new Error('Path outside project')
+  const readCheck = checkReadPath(p, PROJECT_ROOT)
+  if (!readCheck.allowed) return `PERMISSION DENIED: ${readCheck.reason}`
   if (!existsSync(abs)) return `File not found: ${p}`
   const content = readFileSync(abs, 'utf8')
   return content.length > 8000 ? content.slice(0, 8000) + '\n...[truncated]' : content
@@ -1581,6 +1580,8 @@ function safeRead(p) {
 function safeWrite(p, content) {
   const abs = resolve(PROJECT_ROOT, p)
   if (!abs.startsWith(PROJECT_ROOT)) throw new Error('Path outside project')
+  const writeCheck = checkWritePath(p, PROJECT_ROOT)
+  if (!writeCheck.allowed) return `PERMISSION DENIED: ${writeCheck.reason}`
   const dir = dirname(abs)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   writeFileSync(abs, content, 'utf8')
@@ -2323,14 +2324,8 @@ async function divineCycle() {
     if (wisdom.cycles % 10 === 0) wisdom = pruneWisdom(wisdom)
 
     // Cut a GitHub Release every 50 cycles (non-blocking)
-    if (wisdom.cycles % 50 === 0 && process.env.GITHUB_REPO && process.env.GITHUB_TOKEN) {
-      try {
-        execSync('node scripts/auto-release.mjs', { cwd: PROJECT_ROOT, stdio: 'pipe', timeout: 30_000 })
-        console.log(`[GOD] 🏷  Auto-release cycle ${wisdom.cycles}`)
-      } catch (e) {
-        console.log(`[GOD] Auto-release failed: ${e.message?.slice(0, 100)}`)
-      }
-    }
+    // Auto-release (tag + push + GitHub Release) is disabled: git.release is
+    // a forbidden agent operation. Releases are cut by a human.
 
     // Generate SEO topic landing pages every 10 cycles.
     // 3 pages per run — with 60+ seed topics that's ~20 full cycles to cover
@@ -2361,10 +2356,8 @@ async function divineCycle() {
         const m = out.match(/(\d+) links added across/)
         if (m && Number(m[1]) > 0) {
           console.log(`[GOD] 💰 Affiliate links injected: ${m[1]} across topic pages`)
-          // Auto-commit the changes so they ship
-          gitExec(`git add app/topics`)
-          gitExec(`git commit -m "revenue: affiliate link injection cycle ${wisdom.cycles}"`)
-          gitExec(`git push`)
+          // Changes are left uncommitted for human review (git.push forbidden;
+          // app/topics is outside the agent write allow-list).
         }
       } catch (e) {
         console.log(`[GOD] Affiliate inject failed: ${e.message?.slice(0, 100)}`)
@@ -2654,12 +2647,8 @@ async function divineCycle() {
 // ── Boot ───────────────────────────────────────────────────────────────────
 console.log('👁️  GOD v2 awakening — Strategic. Learning. Self-improving. Dashboard-editing.\n')
 
-// Ensure god_status.meta column exists (idempotent)
-try {
-  await supabase.rpc('agent_exec_ddl', {
-    statement: `ALTER TABLE god_status ADD COLUMN IF NOT EXISTS meta JSONB`
-  })
-} catch {}
+// (Removed: boot-time ALTER TABLE via agent_exec_ddl. god_status.meta is
+// defined by supabase/migrations/20260923000200_legacy_ops_baseline.sql.)
 
 await setGodThought('Awakening... loading accumulated wisdom...')
 

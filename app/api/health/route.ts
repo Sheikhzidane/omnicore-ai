@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import { readFileSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -121,7 +123,10 @@ function checkCostLog(): CheckResult {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const startMs = logLatencyStart('/api/health', 'GET')
 
   const results = await Promise.all([

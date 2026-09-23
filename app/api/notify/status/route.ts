@@ -1,6 +1,10 @@
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse, NextRequest } from 'next/server'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   return NextResponse.json({
     discord:  Boolean(process.env.DISCORD_WEBHOOK_URL),
     slack:    Boolean(process.env.SLACK_WEBHOOK_URL),
@@ -16,6 +20,9 @@ export async function GET() {
 
 // POST /api/notify/status — send a test notification
 export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.notify.status.post')
+  if (!authz.ok) return authz.response
+
   const body = await req.json().catch(() => ({})) as { title?: string; message?: string }
   const title = body.title ?? 'Test notification'
   const message = body.message ?? `Fired at ${new Date().toISOString()} from the dashboard`

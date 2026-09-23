@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createHmac, timingSafeEqual } from 'node:crypto'
@@ -44,14 +46,24 @@ const RULES: Array<{
     when: (c) => c.source === 'generic',
     task: (c) => ({
       title: `[webhook] ${c.event}: ${String(c.payload?.title ?? c.payload?.message ?? 'external trigger').slice(0, 120)}`,
-      priority: (c.payload?.priority as 'low'|'medium'|'high'|'critical') ?? 'medium',
+      // Validate: untrusted input must not pick an arbitrary priority string.
+      priority: (['low', 'medium', 'high', 'critical'] as const).find(p => p === c.payload?.priority) ?? 'medium',
     }),
   },
 ]
 
+function safeEqual(a: string, b: string): boolean {
+  const x = Buffer.from(a)
+  const y = Buffer.from(b)
+  return x.length === y.length && timingSafeEqual(x, y)
+}
+
+// FAIL CLOSED: an unset secret means the webhook is disabled, never open.
+// Webhook payloads become Task Inbox proposals that agents may later execute,
+// so an unauthenticated webhook would be a prompt-injection path.
 function verifyGithubSig(body: string, sig: string | null): boolean {
   const secret = process.env.GITHUB_WEBHOOK_SECRET
-  if (!secret) return true // no secret configured → open; document this in README
+  if (!secret) return false
   if (!sig || !sig.startsWith('sha256=')) return false
   try {
     const expected = 'sha256=' + createHmac('sha256', secret).update(body).digest('hex')
@@ -61,10 +73,12 @@ function verifyGithubSig(body: string, sig: string | null): boolean {
   } catch { return false }
 }
 
-export async function POST(req: Request, { params }: { params: { source: string } }) {
-  const source = params.source
-  if (!['github', 'generic', 'shopify', 'stripe'].includes(source)) {
-    return NextResponse.json({ error: 'unknown-source' }, { status: 404 })
+export async function POST(req: Request, { params }: { params: Promise<{ source: string }> }) {
+  const { source } = await params
+  if (!['github', 'generic'].includes(source)) {
+    // shopify/stripe were accepted with no signature verification at all.
+    // They stay disabled until a verified handler exists.
+    return NextResponse.json({ error: 'unsupported-source' }, { status: 404 })
   }
 
   const raw = await req.text()
@@ -76,11 +90,12 @@ export async function POST(req: Request, { params }: { params: { source: string 
     const sig = req.headers.get('x-hub-signature-256')
     if (!verifyGithubSig(raw, sig)) return NextResponse.json({ error: 'bad-signature' }, { status: 401 })
   }
-  // Generic webhooks use a shared token in the query string for dead-simple auth
+  // Generic webhooks: shared token in the x-webhook-token header (preferred)
+  // or ?token= (legacy). Disabled when GENERIC_WEBHOOK_TOKEN is unset.
   if (source === 'generic') {
-    const url = new URL(req.url)
-    const token = url.searchParams.get('token')
-    if (process.env.GENERIC_WEBHOOK_TOKEN && token !== process.env.GENERIC_WEBHOOK_TOKEN) {
+    const expected = process.env.GENERIC_WEBHOOK_TOKEN
+    const token = req.headers.get('x-webhook-token') ?? new URL(req.url).searchParams.get('token') ?? ''
+    if (!expected || !safeEqual(token, expected)) {
       return NextResponse.json({ error: 'bad-token' }, { status: 401 })
     }
   }
@@ -102,7 +117,7 @@ export async function POST(req: Request, { params }: { params: { source: string 
 
   const { data, error } = await supabase.from('todos').insert({
     title:    spec.title,
-    status:   'proposed',                            // goes to inbox, God decides when to promote
+    status:   'proposed',                            // Task Inbox: a human must approve before any agent acts
     priority: spec.priority,
     task_category: spec.category ?? 'other',
     metadata: { source: 'webhook', webhook_source: source, webhook_event: event, received_at: new Date().toISOString() },
@@ -112,13 +127,18 @@ export async function POST(req: Request, { params }: { params: { source: string 
   return NextResponse.json({ ok: true, matched: true, task_id: data.id, spawned: spec.title })
 }
 
-export async function GET(_req: Request, { params }: { params: { source: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ source: string }> }) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
+  const { source } = await params
   // Cheap liveness check — lets you curl the webhook URL to verify it's wired
   return NextResponse.json({
-    source:       params.source,
-    configured:   true,
+    source,
+    // Reports presence only — never the secret itself.
+    configured:   source === 'github' ? !!process.env.GITHUB_WEBHOOK_SECRET : source === 'generic' ? !!process.env.GENERIC_WEBHOOK_TOKEN : false,
     acceptsPost:  true,
     rules:        RULES.length,
-    sampleCurl:   `curl -X POST http://localhost:3000/api/webhooks/generic?token=$GENERIC_WEBHOOK_TOKEN -H 'content-type: application/json' -d '{"event":"alert","title":"Disk space 80%","priority":"high"}'`,
+    sampleCurl:   `curl -X POST http://localhost:3000/api/webhooks/generic -H "x-webhook-token: $GENERIC_WEBHOOK_TOKEN" -H 'content-type: application/json' -d '{"event":"alert","title":"Disk space 80%","priority":"high"}'`,
   })
 }

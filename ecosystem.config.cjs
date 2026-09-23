@@ -1,3 +1,8 @@
+// Legacy Pantheon ops agents. ALL of these exit immediately unless
+// OPS_AGENTS_ENABLED=true is set in the process environment, and they run
+// inside the permission boundary in scripts/lib-agent-permissions.mjs
+// (see docs/AGENT_PERMISSIONS.md). promote/affiliate/auto-release are
+// permanently disabled.
 module.exports = {
   apps: [
     {

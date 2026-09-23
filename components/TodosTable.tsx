@@ -457,9 +457,11 @@ export default function TodosTable({ todos, setTodos, onStatusChange, onLogEntry
                     todo={todo}
                     flashing={flashedIds.current.has(todo.id)}
                     onStatusUpdate={async (newStatus) => {
-                      const supabase = createClient()
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      await (supabase.from('todos') as any).update({ status: newStatus }).eq('id', todo.id)
+                      await fetch('/api/todos', {
+                        method: 'PATCH',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ id: todo.id, status: newStatus }),
+                      })
                     }}
                   />
                 ))}
@@ -496,16 +498,13 @@ export default function TodosTable({ todos, setTodos, onStatusChange, onLogEntry
                       todo={todo}
                       flashing={flashedIds.current.has(todo.id)}
                       onStatusUpdate={async (newStatus) => {
-                        const supabase = createClient()
-                        // Retry: clear assigned agent so ruflo picks it up fresh
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const update: any = { status: newStatus }
-                        if (todo.status === 'failed' && newStatus === 'pending') {
-                          update.assigned_agent = null
-                          update.retry_count = (todo.retry_count ?? 0) + 1
-                        }
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        await (supabase.from('todos') as any).update(update).eq('id', todo.id)
+                        // Server-side, audited. Retry clears the agent and bumps retry_count.
+                        const isRetry = todo.status === 'failed' && newStatus === 'pending'
+                        await fetch('/api/todos', {
+                          method: 'PATCH',
+                          headers: { 'content-type': 'application/json' },
+                          body: JSON.stringify(isRetry ? { id: todo.id, retry: true } : { id: todo.id, status: newStatus }),
+                        })
                       }}
                     />
                   ))}

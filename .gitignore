@@ -67,6 +67,7 @@ dist/*.zip
 !/LICENSE
 !/INSTALL.md
 !/CONTRIBUTING.md
+!/MERGE_PLAN.md
 
 # One-off query / export / validation scripts (kept the pattern matching
 # god's naming conventions — its real utilities live under agent names)
@@ -116,3 +117,11 @@ docs/*_schema.md
 docs/*-query-examples.sql
 docs/agent_exec_*
 .agent-worktrees/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# ops-agent scratch area (see scripts/lib-agent-permissions.mjs)
+agent-workspace/
+
+# Database dumps must never be committed (contain personal data)
+backups/*.json

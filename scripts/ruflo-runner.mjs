@@ -21,6 +21,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { assertOpsAgentsEnabled, checkWritePath, checkReadPath, checkOperation, violations } from './lib-agent-permissions.mjs'
 
 // ── Load .env.local FIRST ──────────────────────────────────────────────────
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -33,6 +35,9 @@ try {
     if (match) process.env[match[1].trim()] = match[2].trim()
   }
 } catch {}
+
+// Kill switch: ops agents are off unless OPS_AGENTS_ENABLED=true.
+assertOpsAgentsEnabled('ruflo-runner')
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODELS = { sonnet: 'claude-sonnet-4-6', haiku: 'claude-haiku-4-5-20251001', opus: 'claude-opus-4-6' }
@@ -256,6 +261,19 @@ function safePath(p) {
   return abs
 }
 
+// Permission boundary (scripts/lib-agent-permissions.mjs): reads of secret
+// files and writes outside the allow-list are refused, whatever the model asks.
+function readablePath(p) {
+  const check = checkReadPath(p, PROJECT_ROOT)
+  if (!check.allowed) throw new Error(`PERMISSION DENIED: ${check.reason}`)
+  return safePath(p)
+}
+function writablePath(p) {
+  const check = checkWritePath(p, PROJECT_ROOT)
+  if (!check.allowed) throw new Error(`PERMISSION DENIED: ${check.reason}`)
+  return safePath(p)
+}
+
 // ── Task category classifier ──────────────────────────────────────────────
 const CAT_KEYWORDS = {
   db:       ['sql','query','table','database','schema','postgres','supabase','migration','index','agent_exec_sql','ddl','select','insert','trigger','rpc','function','view'],
@@ -280,15 +298,6 @@ const DB_TOOLS = [
       type: 'object',
       properties: { query: { type: 'string', description: 'SQL SELECT query' } },
       required: ['query']
-    }
-  },
-  {
-    name: 'run_ddl',
-    description: 'Execute DDL/DML (CREATE TABLE, ALTER TABLE, INSERT, CREATE FUNCTION, etc.).',
-    input_schema: {
-      type: 'object',
-      properties: { statement: { type: 'string', description: 'SQL DDL/DML statement' } },
-      required: ['statement']
     }
   },
   {
@@ -659,49 +668,14 @@ async function compressMessages(messages) {
 
 // ── Execute a tool call ────────────────────────────────────────────────────
 async function executeTool(name, input, { readFiles, memory } = {}) {
-  if (name === 'run_sql') {
-    try {
-      const { data, error } = await supabase.rpc('agent_exec_sql', { query: input.query })
-      if (error) {
-        const hints = matchErrorToMemory(error.message, memory)
-        return `SQL error: ${error.message}${hints.length ? `\n[Memory hint: ${hints[0]}]` : ''}`
-      }
-      return JSON.stringify(data, null, 2).slice(0, 4000)
-    } catch (e) { return `Error: ${e.message}` }
+  // Raw SQL and DDL were removed (agent_exec_sql / agent_exec_ddl no longer
+  // exist). Schema changes go through reviewed migrations only.
+  if (name === 'run_sql' || name === 'run_ddl') {
+    return `PERMISSION DENIED: ${checkOperation(name === 'run_ddl' ? 'db.ddl' : 'db.raw_sql').reason}. Schema/data changes require a reviewed migration.`
   }
 
-  if (name === 'run_ddl') {
-    try {
-      const { data, error } = await supabase.rpc('agent_exec_ddl', { statement: input.statement })
-      if (error) {
-        const hints = matchErrorToMemory(error.message, memory)
-        return `DDL error: ${error.message}${hints.length ? `\n[Memory hint: ${hints[0]}]` : ''}`
-      }
-      return data ?? 'OK'
-    } catch (e) { return `Error: ${e.message}` }
-  }
-
-  if (name === 'list_tables') {
-    try {
-      const { data, error } = await supabase.rpc('agent_exec_sql', {
-        query: `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`
-      })
-      if (error) return `Error: ${error.message}`
-      return JSON.stringify(data, null, 2)
-    } catch (e) { return `Error: ${e.message}` }
-  }
-
-  if (name === 'describe_table') {
-    try {
-      const { data, error } = await supabase.rpc('agent_exec_sql', {
-        query: `SELECT column_name, data_type, is_nullable, column_default
-                FROM information_schema.columns
-                WHERE table_schema = 'public' AND table_name = '${input.table_name}'
-                ORDER BY ordinal_position`
-      })
-      if (error) return `Error: ${error.message}`
-      return JSON.stringify(data, null, 2)
-    } catch (e) { return `Error: ${e.message}` }
+  if (name === 'list_tables' || name === 'describe_table') {
+    return `PERMISSION DENIED: ${checkOperation('db.raw_sql').reason}. Read supabase/migrations/ for the schema.`
   }
 
   if (name === 'create_subtask') {
@@ -710,7 +684,8 @@ async function executeTool(name, input, { readFiles, memory } = {}) {
       const category = classifyTaskCategory(input.title)
       const { error } = await supabase.from('todos').insert({
         title:          input.title,
-        status:         'pending',
+        // Agent-created work waits for a human in the Task Inbox.
+        status:         'proposed',
         priority:       input.priority,
         assigned_agent: agent.name,
         parent_task_id: opts.parentTaskId ?? null,
@@ -724,7 +699,7 @@ async function executeTool(name, input, { readFiles, memory } = {}) {
 
   if (name === 'read_file') {
     try {
-      const abs = safePath(input.path)
+      const abs = readablePath(input.path)
       if (!existsSync(abs)) return `File not found: ${input.path}`
       readFiles?.add(input.path)
       const content = readFileSync(abs, 'utf8')
@@ -736,7 +711,7 @@ async function executeTool(name, input, { readFiles, memory } = {}) {
 
   if (name === 'write_file') {
     try {
-      const abs = safePath(input.path)
+      const abs = writablePath(input.path)
       const notRead = readFiles && !readFiles.has(input.path)
       const dir = dirname(abs)
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
@@ -750,7 +725,7 @@ async function executeTool(name, input, { readFiles, memory } = {}) {
 
   if (name === 'patch_file') {
     try {
-      const abs = safePath(input.path)
+      const abs = writablePath(input.path)
       if (!existsSync(abs)) return `File not found: ${input.path}`
       const original = readFileSync(abs, 'utf8')
       readFiles?.add(input.path)
@@ -810,9 +785,8 @@ async function executeTool(name, input, { readFiles, memory } = {}) {
 
   if (name === 'git_diff') {
     try {
-      const { execSync } = await import('node:child_process')
-      const target = input.path ? `-- "${input.path}"` : ''
-      const out = execSync(`git diff ${target}`, { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 10000 })
+      const args = input.path ? ['diff', '--', String(input.path)] : ['diff']
+      const out = execFileSync('git', args, { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 10000 })
       return out.slice(0, 6000) || 'No changes.'
     } catch (e) { return `git error: ${e.message}` }
   }
@@ -827,10 +801,18 @@ async function executeTool(name, input, { readFiles, memory } = {}) {
 
   if (name === 'git_commit') {
     try {
-      const { execSync } = await import('node:child_process')
-      execSync('git add -A', { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 10000 })
-      const msg = input.message.replace(/"/g, "'")
-      const out = execSync(`git commit -m "${msg}"`, { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 10000 })
+      // Stage only changed files that are inside the write allow-list; refuse
+      // if anything protected is already staged. Never push.
+      const git = (...args) => execFileSync('git', args, { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 10000 })
+      const changed = git('status', '--porcelain', '-z', '--no-renames', '--untracked-files=all').split('\0').filter(Boolean).map(l => l.slice(3))
+      const blocked = violations(changed, PROJECT_ROOT)
+      if (blocked.length) {
+        return `PERMISSION DENIED: working tree contains changes to protected paths — nothing committed:\n${blocked.map(b => ` - ${b.reason}`).join('\n')}`
+      }
+      if (changed.length === 0) return 'Nothing to commit — working tree clean.'
+      git('add', '--', ...changed)
+      const msg = String(input.message ?? 'agent change').slice(0, 200)
+      const out = git('commit', '-m', `[ops-agent] ${msg}`)
       return out.trim()
     } catch (e) {
       // "nothing to commit" is not an error

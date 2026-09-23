@@ -15,6 +15,12 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+
+// Permanently disabled (Phase 1 security lockdown): automated Reddit posting conflicts with the platform anti-spam policy.
+// Code kept for reference only. See docs/AGENT_PERMISSIONS.md.
+console.log('[promote-agent] disabled: automated Reddit posting conflicts with the platform anti-spam policy.')
+process.exit(0)
+
 const __dirname    = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = resolve(__dirname, '..')
 const REVENUE_LOG  = join(__dirname, 'revenue-log.json')

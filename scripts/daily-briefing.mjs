@@ -15,6 +15,11 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
+import { assertOpsAgentsEnabled } from './lib-agent-permissions.mjs'
+
+// Kill switch: ops agents are off unless OPS_AGENTS_ENABLED=true.
+assertOpsAgentsEnabled('daily-briefing')
+
 const execFileAsync = promisify(execFile)
 const CLAUDE = 'C:\\Users\\LTAGB\\AppData\\Roaming\\npm\\claude.cmd'
 const __dirname = dirname(fileURLToPath(import.meta.url))

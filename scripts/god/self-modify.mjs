@@ -15,7 +15,8 @@
 // and trust the verification is catching regressions.
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from 'node:fs'
-import { execSync } from 'node:child_process'
+import { execSync, execFileSync } from 'node:child_process'
+import { checkWritePath } from '../lib-agent-permissions.mjs'
 import { join } from 'node:path'
 
 const SANDBOX_ROOT_NAME = '.god-self-mod'
@@ -53,6 +54,14 @@ export async function proposeSelfMod(proposal, { projectRoot, log = console }) {
   const { targetFile, patchOld, patchNew, rationale, testCommand = 'npm test' } = proposal
   if (!targetFile || !patchOld || !patchNew) {
     return { ok: false, reason: 'malformed-proposal' }
+  }
+
+  // 0. Permission boundary — self-modification of agent code, auth, security
+  //    or infrastructure is forbidden (scripts/ is itself protected).
+  const perm = checkWritePath(targetFile, projectRoot)
+  if (!perm.allowed) {
+    log.log(`[SELF-MOD] ⛔ ${perm.reason}`)
+    return { ok: false, reason: 'permission-denied', detail: perm.reason }
   }
 
   // 1. Validate the target file exists + patchOld is present exactly once
@@ -108,10 +117,15 @@ export async function proposeSelfMod(proposal, { projectRoot, log = console }) {
     return { ok: true, staged: true, pendingCount: queue.length }
   }
 
-  // AUTO mode — file is already patched; commit it
-  const safeRationale = rationale.replace(/"/g, "'").slice(0, 72)
-  sh(`git add "${targetFile}"`, projectRoot)
-  sh(`git commit -m "[god-self-mod] ${safeRationale}"`, projectRoot)
+  // AUTO mode — file is already patched; commit it (argv form: no shell).
+  const safeRationale = String(rationale ?? '').slice(0, 72)
+  try {
+    execFileSync('git', ['add', '--', targetFile], { cwd: projectRoot, stdio: 'pipe' })
+    execFileSync('git', ['commit', '-m', `[god-self-mod] ${safeRationale}`], { cwd: projectRoot, stdio: 'pipe' })
+  } catch (e) {
+    writeFileSync(absTarget, original, 'utf8')
+    return { ok: false, reason: 'commit-failed', detail: e.message?.slice(0, 120) }
+  }
   const sha = sh('git rev-parse --short HEAD', projectRoot).trim?.() ?? '?'
   log.log(`[SELF-MOD] ✓ auto-merged ${sha}: ${safeRationale}`)
   return { ok: true, auto: true, sha }

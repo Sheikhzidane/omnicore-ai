@@ -1,5 +1,7 @@
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
@@ -24,11 +26,13 @@ async function saveJson(store: { subscribers: Subscriber[] }) {
 }
 
 // ── Supabase path — preferred in production so serverless writes persist ────
+// Public signups are written server-side with the service role after
+// validation + rate limiting (there is no anonymous insert policy).
 async function supabaseAdd(email: string, source: string, referrer?: string) {
-  const supabase = await createServerClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('subscribers')
-    .insert({ email, source, referrer: referrer ?? null } as never)
+    .insert({ email, source, referrer: referrer ?? null })
   if (error) {
     // Postgres unique_violation
     if (error.code === '23505') return { already: true }
@@ -59,13 +63,15 @@ async function supabaseStats() {
 
 async function supabaseExists(): Promise<boolean> {
   try {
-    const supabase = await createServerClient()
+    const supabase = createAdminClient()
     const { error } = await supabase.from('subscribers').select('email').limit(1)
     if (!error) return true
     // "relation does not exist" means migration not applied — fall back to JSON
     return false
   } catch { return false }
 }
+
+const SUBSCRIBED = "Thanks — you're on the list."
 
 function validEmail(e: string): boolean {
   return typeof e === 'string'
@@ -95,14 +101,10 @@ export async function POST(req: NextRequest) {
 
   if (useSupabase) {
     try {
-      const result = await supabaseAdd(email, source, referrer)
-      return NextResponse.json({
-        ok: true,
-        already: 'already' in result,
-        message: 'already' in result
-          ? "You're already on the list — thanks!"
-          : "Thanks — you're in. I'll ping you when there's something worth sharing.",
-      })
+      await supabaseAdd(email, source, referrer)
+      // Identical response whether or not the email already existed, so the
+      // endpoint can't be used to test who is subscribed.
+      return NextResponse.json({ ok: true, message: SUBSCRIBED })
     } catch (e) {
       // Supabase failed unexpectedly — fall through to JSON
       console.error('[subscribe] Supabase insert failed:', (e as Error).message)
@@ -112,7 +114,7 @@ export async function POST(req: NextRequest) {
   // JSON fallback path
   const store = await loadJson()
   if (store.subscribers.find(s => s.email === email)) {
-    return NextResponse.json({ ok: true, already: true, message: "You're already on the list — thanks!" })
+    return NextResponse.json({ ok: true, message: SUBSCRIBED })
   }
   store.subscribers.push({
     email, source, referrer,
@@ -120,15 +122,14 @@ export async function POST(req: NextRequest) {
     confirmed: false,
   })
   await saveJson(store)
-  return NextResponse.json({
-    ok: true,
-    message: "Thanks — you're in. I'll ping you when there's something worth sharing.",
-    total:   store.subscribers.length,
-  })
+  return NextResponse.json({ ok: true, message: SUBSCRIBED })
 }
 
 // GET /api/subscribe — stats + recent list (for dashboard)
 export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const format = req.nextUrl.searchParams.get('format')
 
   // Unified read: try Supabase, fall back to JSON
