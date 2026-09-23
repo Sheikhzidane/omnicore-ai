@@ -4,7 +4,7 @@ import { rateLimit } from '@/lib/rate-limit'
 // Single-purpose middleware: rate limiting only. Anything else that
 // needs to run per-request belongs in route handlers, not here — this
 // runs on every matched path and contributes to cold-start size.
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const limited = rateLimit(req, req.nextUrl.pathname)
   if (limited) return limited
   return NextResponse.next()

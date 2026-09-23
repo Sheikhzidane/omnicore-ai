@@ -61,8 +61,8 @@ function verifyGithubSig(body: string, sig: string | null): boolean {
   } catch { return false }
 }
 
-export async function POST(req: Request, { params }: { params: { source: string } }) {
-  const source = params.source
+export async function POST(req: Request, { params }: { params: Promise<{ source: string }> }) {
+  const { source } = await params
   if (!['github', 'generic', 'shopify', 'stripe'].includes(source)) {
     return NextResponse.json({ error: 'unknown-source' }, { status: 404 })
   }
@@ -112,10 +112,11 @@ export async function POST(req: Request, { params }: { params: { source: string 
   return NextResponse.json({ ok: true, matched: true, task_id: data.id, spawned: spec.title })
 }
 
-export async function GET(_req: Request, { params }: { params: { source: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ source: string }> }) {
+  const { source } = await params
   // Cheap liveness check — lets you curl the webhook URL to verify it's wired
   return NextResponse.json({
-    source:       params.source,
+    source,
     configured:   true,
     acceptsPost:  true,
     rules:        RULES.length,

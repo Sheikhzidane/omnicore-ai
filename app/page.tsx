@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import DashboardShell from '@/components/DashboardShell'
 import { DEMO_TODOS } from '@/lib/demoData'
@@ -14,7 +15,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     return (
       <main className="max-w-7xl mx-auto p-6 space-y-6">
         <div className="rounded border border-cyan-700/50 bg-cyan-950/20 px-4 py-2 text-[11px] font-mono text-cyan-300">
-          ◈ DEMO MODE — synthetic data, no live agents. <a href="/" className="underline hover:text-cyan-200">exit demo</a>
+          ◈ DEMO MODE — synthetic data, no live agents. <Link href="/" className="underline hover:text-cyan-200">exit demo</Link>
         </div>
         <DashboardShell initialTodos={DEMO_TODOS} />
       </main>

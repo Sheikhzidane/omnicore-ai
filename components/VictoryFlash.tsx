@@ -9,7 +9,7 @@ export default function VictoryFlash({ todos }: Props) {
   const [visible, setVisible] = useState(false)
   const [message, setMessage] = useState('')
   const prevRef = useRef<Map<string, string>>(new Map())
-  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     const prev = prevRef.current

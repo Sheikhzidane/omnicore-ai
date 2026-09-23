@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Todo } from '@/types/todos'
@@ -151,7 +152,7 @@ export default function StreamView() {
       <footer className="pb-12 text-center text-[10px] font-mono text-slate-600 space-y-1 pb-20">
         <div>pantheon — autonomous multi-agent AI system · built solo</div>
         <div>
-          <a href="/" className="text-cyan-500 hover:underline">control dashboard</a>
+          <Link href="/" className="text-cyan-500 hover:underline">control dashboard</Link>
           <span className="mx-2">·</span>
           <a href="/topics" className="text-cyan-500 hover:underline">articles</a>
           <span className="mx-2">·</span>
