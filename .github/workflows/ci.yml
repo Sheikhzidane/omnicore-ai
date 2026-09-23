@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'god/**']
+    branches: [main, 'claude/**']
   pull_request:
     branches: [main]
 
@@ -32,14 +32,21 @@ jobs:
         run: npm test
 
       - name: Build
-        # BLOCKING — catches build-time failures the typecheck misses
-        # (route handler signatures, dynamic-import errors, etc).
+        # Placeholder values only: the build needs no real secrets, and real
+        # service-role keys must never be handed to CI build steps.
         env:
-          NEXT_PUBLIC_SUPABASE_URL:      ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_URL:                  ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY:     ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+          NEXT_TELEMETRY_DISABLED: '1'
         run: npm run build
+
+      - name: Secret exposure check
+        # Fails if a server secret's name is read by client code, or its
+        # (placeholder) value appears in the client bundle.
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+        run: npm run check:secrets
 
   database:
     # Applies every migration to a disposable Postgres and runs the RLS /

@@ -36,12 +36,13 @@ const UpdateBody = z.object({
 
 const badRequest = (error: string) => NextResponse.json({ error }, { status: 400 })
 
+// Authorise BEFORE parsing: anonymous callers learn nothing about the schema.
 export async function POST(req: NextRequest) {
+  const auth = await requirePlatformAdminApi(req, 'ops.todo.create')
+  if (!auth.ok) return auth.response
+
   const body = CreateBody.safeParse(await req.json().catch(() => null))
   if (!body.success) return badRequest('invalid body: title required; see schema')
-
-  const auth = await requirePlatformAdminApi(req, 'ops.todo.create', { status: body.data.status, priority: body.data.priority })
-  if (!auth.ok) return auth.response
 
   const { data, error } = await createAdminClient()
     .from('todos')
@@ -53,14 +54,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const auth = await requirePlatformAdminApi(req, 'ops.todo.update')
+  if (!auth.ok) return auth.response
+
   const body = UpdateBody.safeParse(await req.json().catch(() => null))
   if (!body.success) return badRequest('invalid body: id (uuid) required; see schema')
   const { id, retry, ...fields } = body.data
-
-  const auth = await requirePlatformAdminApi(req, retry ? 'ops.todo.retry' : 'ops.todo.update', {
-    id, status: fields.status ?? null, priority: fields.priority ?? null,
-  })
-  if (!auth.ok) return auth.response
 
   const admin = createAdminClient()
   const update: TodoUpdate = { ...fields }
@@ -79,10 +78,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const id = z.string().uuid().safeParse(req.nextUrl.searchParams.get('id'))
-  if (!id.success) return badRequest('id query param (uuid) is required')
-
-  const auth = await requirePlatformAdminApi(req, 'ops.todo.delete', { id: id.data })
+  const auth = await requirePlatformAdminApi(req, 'ops.todo.delete', { id: id.success ? id.data : null })
   if (!auth.ok) return auth.response
+  if (!id.success) return badRequest('id query param (uuid) is required')
 
   const { error } = await createAdminClient().from('todos').delete().eq('id', id.data)
   if (error) return badRequest(error.message)

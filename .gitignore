@@ -122,3 +122,6 @@ tsconfig.tsbuildinfo
 
 # ops-agent scratch area (see scripts/lib-agent-permissions.mjs)
 agent-workspace/
+
+# Database dumps must never be committed (contain personal data)
+backups/*.json

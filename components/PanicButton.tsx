@@ -7,12 +7,9 @@ interface PanicStatus { configured: boolean; processes: ProcessInfo[] }
 
 /**
  * "Pause everything" safety control. One click → asks for confirmation →
- * POSTs /api/panic with the token from localStorage, which triggers
- * `pm2 stop all`. Resume button appears when processes are stopped.
- *
- * Token is read from localStorage (key: dash:panic-token). The user sets
- * it once via Settings (or just pastes into the browser console).
- * Server-side PANIC_TOKEN env must match.
+ * POSTs /api/panic, which triggers `pm2 stop all`. Authorised server-side by
+ * the platform-admin session and recorded in audit_log. No secret is held in
+ * the browser.
  */
 export default function PanicButton() {
   const [status, setStatus]   = useState<PanicStatus | null>(null)
@@ -34,16 +31,10 @@ export default function PanicButton() {
 
   async function call(action: 'stop' | 'resume' | 'restart') {
     setWorking(true)
-    const token = (() => { try { return localStorage.getItem('dash:panic-token') ?? '' } catch { return '' } })()
-    if (!token) {
-      alert('Set PANIC_TOKEN in .env.local AND paste it into localStorage:\n\nlocalStorage.setItem("dash:panic-token", "YOUR_TOKEN")\n\nThen try again.')
-      setWorking(false)
-      return
-    }
     try {
       const r = await fetch('/api/panic', {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Panic-Token': token },
+        headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ action }),
       })
       const body = await r.json().catch(() => null)
@@ -74,11 +65,6 @@ export default function PanicButton() {
       </div>
 
       <div className="p-3">
-        {!status.configured && (
-          <div className="text-[10px] font-mono text-amber-400 mb-2">
-            ⚡ Add <code className="text-amber-300">PANIC_TOKEN</code> to <code className="text-amber-300">.env.local</code> to enable these controls.
-          </div>
-        )}
 
         <div className="flex gap-2 flex-wrap">
           {anyRunning && !confirm && (
