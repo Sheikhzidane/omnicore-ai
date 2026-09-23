@@ -7,7 +7,7 @@
 | Primary repo | `omnicore-ai` @ `8df4f95` (branch `claude/repository-setup-sq8u29`, same as `origin/main`) |
 | Reference repo | `creator-crm` @ `2220646` (read-only clone at `/home/user/sheikhzidane/creator-crm`) |
 | Audit date | 2026-09-23 |
-| Status | **Phase 0 complete: audit and plan only. No application code changed.** |
+| Status | **Phase 1 complete: secure, buildable foundation (see §15). Phase 2 not started.** |
 
 ---
 
@@ -590,15 +590,47 @@ Failures are fixed before moving on, then one descriptive commit is pushed to `c
 
 ---
 
-## 14. Decisions I need from you
+## 14. Owner decisions (recorded 2026-09-23)
 
-1. **Single-owner or multi-tenant?** The schema supports both. The plan launches single-owner (one workspace per sign-up) unless you want invites and teams in v1.
-2. **Legacy Pantheon features:** move to `/ops` as planned, or delete now? This covers the SEO topic pages, AdSense, Gumroad/marketplace/Kit CTAs, pixel office, Jarvis/TTS, and the Reddit auto-promote agent. My recommendation: move them to `/ops` during the migration, delete the SEO pages and the promote agent afterwards.
-3. **Revoke `agent_exec_ddl`** from the legacy ops agents (recommended), or keep it?
-4. **Live DB access for the §6.6 preflight:** do you want me to inspect your Supabase project read-only through the Supabase connector, or will you provide `supabase db dump --schema public` output?
-5. **Apify discovery:** port it as an optional, disabled-by-default adapter (brand discovery and peer benchmarking only, no email harvesting), or leave it out entirely?
+1. **Tenancy:** V1 is single-owner, but the schema is multi-tenant-ready (`workspaces` + `workspace_members`). ✅ Implemented.
+2. **Legacy Pantheon:** useful operational pages move to `/ops`. Nothing potentially useful is deleted; only code proven dead (no importers or runtime dependency) is removed. ✅ Implemented.
+3. **Inherited agents lose all ability to modify** schema, migrations, auth, RLS, env files, secrets, deploy config and protected infrastructure. ✅ Implemented (docs/AGENT_PERMISSIONS.md).
+4. **Discovery** stays an optional module, disabled by default. The core product never depends on Apify. (Built in the CRM phase.)
+5. **omnicore-ai** is the only production repository. **Supabase** is the only database, auth and storage platform. No Drizzle or Neon.
 
----
+## 15. Phase 1 outcome (2026-09-23)
+
+### Where the plan changed, and why
+
+| Plan said | What happened |
+|---|---|
+| §6.1: keep migrations `0001`–`0032` and add to them | Applied to a fresh Postgres, **14 of 32 legacy migrations fail** (invalid SQL, a non-existent function, tables that only existed in the original author's DB, duplicate versions). This fork has no live DB, and the only Supabase project on the owner's account belongs to another app (inspected read-only, untouched). The chain is **archived unchanged** in `supabase/legacy-migrations/`, and a new timestamped chain starts with a minimal legacy baseline. See `supabase/migrations/README.md`. |
+| §6.6: live-DB preflight via dump | There is no live DB for this fork. Every migration instead starts with a guard that aborts if its tables already exist. |
+| Stage 1: fix lint, typecheck, build | `@supabase/ssr` 0.5 had drifted from supabase-js 2.103, which typed every table as `never`; that's why the code was full of `as any`. Both were aligned, an accurate `types/database.ts` replaces the permissive type, and a test keeps it in sync with the migrations. |
+| Stage 2: ESLint 10 era | ESLint 9 is used, because `eslint-config-next` 16.3.6's plugins don't support 10 yet. |
+| Stage 4: `agents` / `agent_tasks` / `agent_runs` | These are created **now** (Phase 1) as secure foundations: members read, server-only writes, agents disabled by default, approval enforced by a constraint. |
+| (not in plan) | Found and fixed during the work: nightly **backups committed DB dumps (PII) into git**; a panic token held in browser `localStorage`; shell injection in agent git commits; `GITHUB_TOKEN` persisted in the git remote URL; `GOD_AUTO_APPROVE` letting agents approve their own tasks; an unauthenticated service-role write endpoint (`/api/reading-order`); webhooks accepting unverified Shopify/Stripe payloads. |
+
+### Delivered
+- Next 16.3.6 / React 19.3. `npm audit --omit=dev`: 0 vulnerabilities (was 10, including 1 critical).
+- Supabase Auth, proxy + layout + in-handler authorisation, and an append-only audit log.
+- 5 migrations: tenancy, audit log, legacy ops baseline, characters/safety, agent engine. RLS everywhere, no anon access.
+- Ops agent lockdown with a kill switch; character-agent capability model.
+- Integration registry (NOT CONFIGURED / DISCONNECTED states), credential vault, and the `check:secrets` CI gate.
+- Safety foundations: disclosure, publish gate, age gating, content policy hard blocks, prohibited automation.
+- Authenticated shell for all ten modules; legacy pages under `/ops`.
+- 83 tests, including 20 migration/RLS tests against a disposable Postgres.
+
+### Re-baselined phases (supersedes the §13 stage numbers)
+
+| Phase | Scope (from §4/§6/§7) | Depends on |
+|---|---|---|
+| **2: Characters & identity** | Character CRUD (library, create wizard, profile, personality, visual identity, brand rules, policies), `character_assets` with a private Storage bucket and consent evidence, `social_accounts` + private credential store schema, server actions with audit | Phase 1 |
+| **3: CRM** | Port creator-crm (§4.1): brands, contacts, leads/prospects with fit scoring, pipeline and stage automations, outreach (approval, caps, suppression), deals, CSV import; optional disabled-by-default discovery | 2 |
+| **4: Content Studio + social connection** | Ideas, AI generation (text), safety pipeline, approval queue, calendar, `content`/`content_queue`; OAuth connect flows for platforms whose credentials exist | 2 |
+| **5: Agent engine** | Executor on `authorizeAgentAction`, budgets, cron/worker, Control Centre, Tasks and Logs UI, centralised Claude model routing | 2–4 |
+| **6: Growth + Monetisation** | Analytics ingestion from connected adapters, performance, experiments/strategy, revenue ledger, rate card | 3–5 |
+| **7: Verification & decommission** | Full regression; creator-crm port checklist; retire legacy marketing pages if approved; delete the local creator-crm clone | all |
 
 ## Appendix A: Baseline evidence (2026-09-23, commit `8df4f95`)
 
