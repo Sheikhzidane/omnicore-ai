@@ -117,3 +117,5 @@ docs/*_schema.md
 docs/*-query-examples.sql
 docs/agent_exec_*
 .agent-worktrees/
+tsconfig.tsbuildinfo
+*.tsbuildinfo

@@ -5,6 +5,13 @@ import { createClient } from '@/lib/supabase/client'
 import { factionForPool, FACTION_STYLES } from '@/lib/factions'
 
 interface Turn { role: 'god' | 'specialist'; text: string; at: string }
+/** Extracts `metadata.conversation` when it is an array of turns, else null. */
+function conversationOf(metadata: unknown): Turn[] | null {
+  if (!metadata || typeof metadata !== 'object') return null
+  const conversation = (metadata as { conversation?: unknown }).conversation
+  return Array.isArray(conversation) ? (conversation as Turn[]) : null
+}
+
 interface Conversation {
   taskId:    string
   taskTitle: string
@@ -39,21 +46,19 @@ export default function AgentConversations() {
         .limit(30)
 
       const seeded: Conversation[] = (data ?? [])
-        .filter((t: { metadata?: { conversation?: unknown } }) =>
-          Array.isArray((t.metadata as { conversation?: unknown } | null)?.conversation)
-        )
-        .slice(0, MAX_VISIBLE)
-        .map((t: { id: string; title: string; assigned_agent: string | null; status: string; metadata: { conversation: Turn[] } }) => {
-          const pool = t.assigned_agent?.replace(/-[a-z0-9]{4,}$/, '') ?? null
-          return {
-            taskId:    t.id,
-            taskTitle: t.title,
-            pool,
-            turns:     t.metadata.conversation,
-            status:    t.status,
-            seenAt:    Date.now(),
-          }
+        .flatMap(t => {
+          const turns = conversationOf(t.metadata)
+          return turns ? [{ ...t, turns }] : []
         })
+        .slice(0, MAX_VISIBLE)
+        .map(t => ({
+          taskId:    t.id,
+          taskTitle: t.title,
+          pool:      t.assigned_agent?.replace(/-[a-z0-9]{4,}$/, '') ?? null,
+          turns:     t.turns,
+          status:    t.status,
+          seenAt:    Date.now(),
+        }))
 
       for (const c of seeded) {
         seenIds.current.add(c.taskId)

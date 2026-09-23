@@ -49,7 +49,7 @@ export default function NewsletterSignup({ source = 'topic-page', pitch }: Props
     return (
       <div className="my-8 rounded border border-emerald-700/50 bg-emerald-950/20 px-5 py-4">
         <div className="text-[11px] font-mono tracking-[0.25em] text-emerald-400 uppercase mb-1">✓ subscribed</div>
-        <div className="text-[13px] text-slate-200">Thanks — you'll get the next dispatch when there's something worth sending.</div>
+        <div className="text-[13px] text-slate-200">Thanks — you&apos;ll get the next dispatch when there&apos;s something worth sending.</div>
       </div>
     )
   }

@@ -227,7 +227,7 @@ export default function TaskInbox({ todos }: Props) {
                       <>
                         <span>·</span>
                         <span className="text-slate-700 italic truncate max-w-[200px]" title={lastComment.text}>
-                          "{lastComment.text.slice(0, 60)}{lastComment.text.length > 60 ? '…' : ''}"
+                          &ldquo;{lastComment.text.slice(0, 60)}{lastComment.text.length > 60 ? '…' : ''}&rdquo;
                         </span>
                       </>
                     )}

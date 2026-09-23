@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
     "agents": "node scripts/ruflo-runner.mjs",
     "orchestrator": "node scripts/orchestrator.mjs",
     "assign": "node scripts/assign-agent.mjs",
@@ -18,8 +19,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.47.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "libsodium-wrappers": "^0.8.3",

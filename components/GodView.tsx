@@ -63,8 +63,7 @@ export default function GodView({ todos }: Props) {
   useEffect(() => {
     const supabase = createClient()
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(supabase.from('god_status') as any).select('*').eq('id', 1).single().then(({ data }: { data: any }) => {
+    ;supabase.from('god_status').select('*').eq('id', 1).single().then(({ data }: { data: any }) => {
       if (data?.thought) setThought(data.thought as string)
       if (data?.meta)    setMeta(data.meta as GodMeta)
       if (data?.intent)  setIntent(data.intent as GodIntent)

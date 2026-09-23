@@ -129,7 +129,7 @@ export default function RevenueTracker() {
             <div className="rounded border border-yellow-900/30 bg-yellow-950/20 p-3 space-y-2">
               <div className="text-xs font-mono text-yellow-600 font-bold">ADD KEY → START EARNING</div>
               <ol className="text-[11px] font-mono text-slate-500 space-y-1 list-decimal list-inside">
-                <li>Go to <span className="text-cyan-700">dev.to/settings/extensions</span> → "New Key"</li>
+                <li>Go to <span className="text-cyan-700">dev.to/settings/extensions</span> → &ldquo;New Key&rdquo;</li>
                 <li>Add <span className="text-green-700">DEV_TO_API_KEY=your_key</span> to .env.local</li>
                 <li>Run: <span className="text-green-700">pm2 restart revenue --update-env</span></li>
                 <li>Articles auto-post every 8h, earning per 1,000 reads</li>

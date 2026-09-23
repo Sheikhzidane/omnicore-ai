@@ -1,19 +1,10 @@
 'use client'
 
+import type { TraceRow } from '@/types/database'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-interface Trace {
-  id: string
-  task_id: string
-  agent_name: string | null
-  tool_name: string
-  input_summary: string | null
-  result_summary: string | null
-  duration_ms: number | null
-  is_error: boolean
-  created_at: string
-}
+type Trace = TraceRow
 
 interface Props {
   taskId: string
@@ -71,12 +62,11 @@ export default function TraceTimeline({ taskId, agentName }: Props) {
     const supabase = createClient()
 
     // Load existing traces
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(supabase.from('traces') as any)
+    ;supabase.from('traces')
       .select('*')
       .eq('task_id', taskId)
       .order('created_at', { ascending: true })
-      .then(({ data }: { data: Trace[] | null }) => {
+      .then(({ data }) => {
         setTraces(data ?? [])
         setLoading(false)
       })

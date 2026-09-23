@@ -138,7 +138,7 @@ export default function NewsletterComposer() {
         </div>
 
         <div className="text-[9px] font-mono text-slate-700">
-          Tip: always self-test first. Broadcast goes via BCC (recipients can't see each other).
+          Tip: always self-test first. Broadcast goes via BCC (recipients can&apos;t see each other).
         </div>
       </div>
     </div>

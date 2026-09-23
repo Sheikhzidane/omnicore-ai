@@ -23,20 +23,13 @@ jobs:
         run: npm ci
 
       - name: Typecheck
-        # BLOCKING — used to be `|| echo warning` which let TS errors slip
-        # through and silently break Vercel for 3 commits in a row. We
-        # tolerate ONE long-standing noisy file via grep so unrelated
-        # work isn't held hostage to it.
-        run: |
-          set -o pipefail
-          npx tsc --noEmit 2>&1 | tee /tmp/tsc.log || true
-          if grep -v 'scripts/batch-classify-with-audit-check.ts' /tmp/tsc.log | grep -E ': error '; then
-            echo "::error::TypeScript errors above — failing CI"
-            exit 1
-          fi
+        run: npm run typecheck
 
       - name: Lint
-        run: npm run lint || echo "::warning::Lint warnings present (non-blocking)"
+        run: npm run lint
+
+      - name: Test
+        run: npm test
 
       - name: Build
         # BLOCKING — catches build-time failures the typecheck misses

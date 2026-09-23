@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Todo, TodoStatus, TaskCategory } from '@/types/todos'
+import type { Todo, TodoStatus, TaskCategory, Database } from '@/types/todos'
 import StatusBadge from './StatusBadge'
 import PriorityBadge from './PriorityBadge'
 import TraceTimeline from './TraceTimeline'
@@ -458,8 +458,7 @@ export default function TodosTable({ todos, setTodos, onStatusChange, onLogEntry
                     flashing={flashedIds.current.has(todo.id)}
                     onStatusUpdate={async (newStatus) => {
                       const supabase = createClient()
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      await (supabase.from('todos') as any).update({ status: newStatus }).eq('id', todo.id)
+                      await supabase.from('todos').update({ status: newStatus }).eq('id', todo.id)
                     }}
                   />
                 ))}
@@ -498,14 +497,12 @@ export default function TodosTable({ todos, setTodos, onStatusChange, onLogEntry
                       onStatusUpdate={async (newStatus) => {
                         const supabase = createClient()
                         // Retry: clear assigned agent so ruflo picks it up fresh
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const update: any = { status: newStatus }
+                        const update: Database['public']['Tables']['todos']['Update'] = { status: newStatus }
                         if (todo.status === 'failed' && newStatus === 'pending') {
                           update.assigned_agent = null
                           update.retry_count = (todo.retry_count ?? 0) + 1
                         }
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        await (supabase.from('todos') as any).update(update).eq('id', todo.id)
+                        await supabase.from('todos').update(update).eq('id', todo.id)
                       }}
                     />
                   ))}

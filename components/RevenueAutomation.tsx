@@ -147,7 +147,7 @@ export default function RevenueAutomation() {
         </div>
 
         {gumroad.length === 0 ? (
-          <div className="text-[11px] font-mono text-slate-600">God hasn't drafted any products yet</div>
+          <div className="text-[11px] font-mono text-slate-600">God hasn&apos;t drafted any products yet</div>
         ) : (
           <div className="space-y-2">
             {unPublishedGumroad.map(p => (
