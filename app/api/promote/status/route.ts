@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -17,7 +19,10 @@ type Entry = {
 type PromoteLog = { posts: Record<string, Record<string, Record<string, Entry>>> }
 type RevenueLog = { posts?: Array<{ id: number; title: string; devToUrl?: string; published?: boolean }> }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   let promoteLog: PromoteLog = { posts: {} }
   let revenueLog: RevenueLog = {}
 

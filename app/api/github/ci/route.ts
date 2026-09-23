@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 
 interface WorkflowRun {
@@ -14,7 +16,10 @@ interface WorkflowRun {
   event:        string
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const repo  = process.env.GITHUB_REPO ?? ''
   const token = process.env.GITHUB_TOKEN ?? ''
 

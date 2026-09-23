@@ -1,6 +1,7 @@
+import 'server-only'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import type { Database } from '@/types/todos'
+import type { Database } from '@/types/database'
 
 interface CookieToSet { name: string; value: string; options: CookieOptions }
 

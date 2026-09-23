@@ -10,7 +10,7 @@ import nextTs from 'eslint-config-next/typescript'
 // files only — never for new code. Remove a file from this list once fixed.
 // Tracked in docs/ARCHITECTURE.md → "Known debt".
 const LEGACY_REACT_COMPILER_DEBT = [
-  'app/share/\\[id\\]/page.tsx',
+  'app/(os)/ops/share/\\[id\\]/page.tsx',
   'components/ActiveAgent.tsx',
   'components/AgentControlPanel.tsx',
   'components/AgentDrilldown.tsx',

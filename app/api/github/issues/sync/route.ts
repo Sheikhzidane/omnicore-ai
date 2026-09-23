@@ -1,8 +1,13 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 // POST /api/github/issues/sync — pull open GitHub issues into todos (status=proposed)
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.github.issues.sync.post')
+  if (!authz.ok) return authz.response
+
   const repo  = process.env.GITHUB_REPO ?? '' // e.g. "owner/repo"
   const token = process.env.GITHUB_TOKEN ?? ''
 
@@ -105,7 +110,10 @@ export async function POST() {
 }
 
 // GET — status check
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const repo  = process.env.GITHUB_REPO ?? ''
   const token = process.env.GITHUB_TOKEN ?? ''
   return NextResponse.json({

@@ -22,6 +22,11 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { verifyUrl, verifyAndLog } from './lib-verify.mjs'
 
+import { assertOpsAgentsEnabled } from './lib-agent-permissions.mjs'
+
+// Kill switch: ops agents are off unless OPS_AGENTS_ENABLED=true.
+assertOpsAgentsEnabled('revenue-agent')
+
 const __dirname   = dirname(fileURLToPath(import.meta.url))
 const ROOT        = join(__dirname, '..')
 

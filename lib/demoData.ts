@@ -1,7 +1,7 @@
 import type { Todo } from '@/types/todos'
 
 /**
- * Canned dashboard data for first-time visitors who hit `/?demo=1`. Lets the
+ * Canned dashboard data for first-time visitors who hit `/ops?demo=1`. Lets the
  * homepage look populated without a real Supabase connection — important
  * because otherwise the dashboard appears broken to anyone shared the URL.
  */

@@ -1,3 +1,4 @@
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
@@ -7,6 +8,9 @@ import { Resend } from 'resend'
 // Sends a broadcast to every confirmed subscriber. For safety the first
 // send should pass { toSelfOnly: true } which only sends to RESEND_TEST_EMAIL.
 export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.newsletter.send.post')
+  if (!authz.ok) return authz.response
+
   const key = process.env.RESEND_API_KEY
   if (!key) {
     return NextResponse.json({
@@ -114,7 +118,10 @@ function unsubscribeFooter(): string {
 }
 
 // GET /api/newsletter/send — return status
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   return NextResponse.json({
     configured: Boolean(process.env.RESEND_API_KEY),
     from:       process.env.RESEND_FROM ?? 'onboarding@resend.dev (default test address)',

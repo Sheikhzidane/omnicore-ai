@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -16,7 +18,10 @@ interface Entry {
 
 const LOG_PATH = join(process.cwd(), 'scripts', 'verification-log.json')
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   if (!existsSync(LOG_PATH)) {
     return NextResponse.json({ entries: [], summary: { total: 0, passed: 0, failed: 0, byKind: {} } })
   }

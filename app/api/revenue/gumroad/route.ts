@@ -1,3 +1,4 @@
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse, NextRequest } from 'next/server'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -30,7 +31,10 @@ async function saveRevenue(log: object) {
 }
 
 // GET /api/revenue/gumroad — list drafted products
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const log = await loadRevenue()
   return NextResponse.json({
     products: (log.gumroadProducts ?? []).map((p, i) => ({
@@ -43,6 +47,9 @@ export async function GET() {
 
 // POST /api/revenue/gumroad — mark a drafted product as published (records the URL)
 export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.revenue.gumroad.post')
+  if (!authz.ok) return authz.response
+
   const body = await req.json() as { index?: number; publishedUrl?: string }
   if (typeof body.index !== 'number' || !body.publishedUrl) {
     return NextResponse.json({ error: 'index and publishedUrl are required' }, { status: 400 })

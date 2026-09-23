@@ -62,7 +62,7 @@ export default async function SharedTask({ params }: PageProps) {
         <div className="text-center">
           <div className="text-[10px] font-mono tracking-[0.25em] text-slate-600 uppercase mb-2">404</div>
           <h1 className="text-xl text-slate-200 mb-4">Task not found</h1>
-          <Link href="/" className="text-[12px] font-mono text-cyan-400 hover:text-cyan-300">← back to dashboard</Link>
+          <Link href="/ops" className="text-[12px] font-mono text-cyan-400 hover:text-cyan-300">← back to ops dashboard</Link>
         </div>
       </main>
     )
@@ -75,7 +75,7 @@ export default async function SharedTask({ params }: PageProps) {
     <main className="min-h-screen bg-slate-950 px-4 py-10">
       <article className="max-w-2xl mx-auto">
         <nav className="text-[10px] font-mono text-slate-500 mb-6">
-          <Link href="/" className="hover:text-cyan-400">◈ pantheon</Link>
+          <Link href="/ops" className="hover:text-cyan-400">◈ pantheon</Link>
           <span className="mx-2">/</span>
           <span>shared task</span>
         </nav>
@@ -111,7 +111,7 @@ export default async function SharedTask({ params }: PageProps) {
 
           <footer className="px-5 py-3 border-t border-slate-800/60 bg-black/40 flex items-center justify-between text-[10px] font-mono text-slate-700">
             <span>id: {todo.id}</span>
-            <Link href="/" className="text-cyan-500 hover:text-cyan-300">see live dashboard →</Link>
+            <Link href="/ops" className="text-cyan-500 hover:text-cyan-300">see live dashboard →</Link>
           </footer>
         </div>
 

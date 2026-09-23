@@ -26,6 +26,12 @@ import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+
+// Permanently disabled (Phase 1 security lockdown): automatic insertion of affiliate links into published pages is undisclosed monetisation.
+// Code kept for reference only. See docs/AGENT_PERMISSIONS.md.
+console.log('[affiliate-injector] disabled: automatic insertion of affiliate links into published pages is undisclosed monetisation.')
+process.exit(0)
+
 const __dirname    = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = resolve(__dirname, '..')
 const TOPICS_DIR   = join(PROJECT_ROOT, 'app', 'topics')

@@ -199,6 +199,11 @@ import Link from 'next/link'
 import DisplayAd from '@/components/DisplayAd'
 import AmazonGeoSwap from '@/components/AmazonGeoSwap'
 
+import { assertOpsAgentsEnabled } from './lib-agent-permissions.mjs'
+
+// Kill switch: ops agents are off unless OPS_AGENTS_ENABLED=true.
+assertOpsAgentsEnabled('seo-topic-generator')
+
 const CANONICAL_PATH = '${locale === 'en' ? `/topics/${topic.slug}` : `/${locale}/topics/${topic.slug}`}'
 
 export const metadata: Metadata = {

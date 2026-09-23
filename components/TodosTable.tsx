@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Todo, TodoStatus, TaskCategory, Database } from '@/types/todos'
+import type { Todo, TodoStatus, TaskCategory } from '@/types/todos'
 import StatusBadge from './StatusBadge'
 import PriorityBadge from './PriorityBadge'
 import TraceTimeline from './TraceTimeline'
@@ -457,8 +457,11 @@ export default function TodosTable({ todos, setTodos, onStatusChange, onLogEntry
                     todo={todo}
                     flashing={flashedIds.current.has(todo.id)}
                     onStatusUpdate={async (newStatus) => {
-                      const supabase = createClient()
-                      await supabase.from('todos').update({ status: newStatus }).eq('id', todo.id)
+                      await fetch('/api/todos', {
+                        method: 'PATCH',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ id: todo.id, status: newStatus }),
+                      })
                     }}
                   />
                 ))}
@@ -495,14 +498,13 @@ export default function TodosTable({ todos, setTodos, onStatusChange, onLogEntry
                       todo={todo}
                       flashing={flashedIds.current.has(todo.id)}
                       onStatusUpdate={async (newStatus) => {
-                        const supabase = createClient()
-                        // Retry: clear assigned agent so ruflo picks it up fresh
-                        const update: Database['public']['Tables']['todos']['Update'] = { status: newStatus }
-                        if (todo.status === 'failed' && newStatus === 'pending') {
-                          update.assigned_agent = null
-                          update.retry_count = (todo.retry_count ?? 0) + 1
-                        }
-                        await supabase.from('todos').update(update).eq('id', todo.id)
+                        // Server-side, audited. Retry clears the agent and bumps retry_count.
+                        const isRetry = todo.status === 'failed' && newStatus === 'pending'
+                        await fetch('/api/todos', {
+                          method: 'PATCH',
+                          headers: { 'content-type': 'application/json' },
+                          body: JSON.stringify(isRetry ? { id: todo.id, retry: true } : { id: todo.id, status: newStatus }),
+                        })
                       }}
                     />
                   ))}

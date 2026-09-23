@@ -1,3 +1,4 @@
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -22,6 +23,9 @@ interface RpcErrorRecord {
  * - offset: number (default: 0)
  */
 export async function GET(request: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(request)
+  if (!authz.ok) return authz.response
+
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

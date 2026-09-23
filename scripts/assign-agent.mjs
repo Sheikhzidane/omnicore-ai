@@ -14,6 +14,11 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
+import { assertOpsAgentsEnabled } from './lib-agent-permissions.mjs'
+
+// Kill switch: ops agents are off unless OPS_AGENTS_ENABLED=true.
+assertOpsAgentsEnabled('assign-agent')
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const envPath = join(__dirname, '..', '.env.local')
 try {

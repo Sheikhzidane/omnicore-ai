@@ -101,8 +101,12 @@ alter table public.subscribers enable row level security;
 
 revoke all on public.todos, public.god_status, public.traces, public.subscribers from anon;
 
-create policy todos_ops_admin on public.todos for all to authenticated
-  using ((select private.is_platform_admin())) with check ((select private.is_platform_admin()));
+-- Read-only for clients. Every write (create/approve/retry/delete) goes
+-- through /api/todos, which re-verifies the platform admin server-side and
+-- writes audit_log first. Agents write with the service role.
+revoke insert, update, delete, truncate on public.todos, public.god_status, public.traces, public.subscribers from authenticated;
+create policy todos_ops_admin_read on public.todos for select to authenticated
+  using ((select private.is_platform_admin()));
 create policy god_status_ops_admin_read on public.god_status for select to authenticated
   using ((select private.is_platform_admin()));
 create policy traces_ops_admin_read on public.traces for select to authenticated

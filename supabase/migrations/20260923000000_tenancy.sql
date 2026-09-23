@@ -108,6 +108,22 @@ $$;
 revoke all on function public.current_user_is_platform_admin() from public, anon;
 grant execute on function public.current_user_is_platform_admin() to authenticated, service_role;
 
+-- Server-side sync of platform-admin status from the OPS_ADMIN_EMAILS env var
+-- (lib/auth/ops-admin.ts, after a verified sign-in). Service role only:
+-- clients can never grant themselves admin.
+create or replace function public.sync_platform_admin(p_user_id uuid, p_is_admin boolean)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if p_is_admin then
+    insert into private.platform_admins (user_id) values (p_user_id) on conflict do nothing;
+  else
+    delete from private.platform_admins where user_id = p_user_id;
+  end if;
+end;
+$$;
+revoke all on function public.sync_platform_admin(uuid, boolean) from public, anon, authenticated;
+grant execute on function public.sync_platform_admin(uuid, boolean) to service_role;
+
 -- ── new user → personal workspace (server-side; identity from auth.users) ────
 create or replace function private.handle_new_user()
 returns trigger language plpgsql security definer set search_path = '' as $$

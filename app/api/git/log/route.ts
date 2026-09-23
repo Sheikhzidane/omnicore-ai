@@ -1,3 +1,4 @@
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextRequest, NextResponse } from 'next/server'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -19,6 +20,9 @@ interface Commit {
 }
 
 export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   if (IS_SERVERLESS) {
     return NextResponse.json({
       commits: [],

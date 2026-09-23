@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -53,7 +55,10 @@ async function safeRead<T>(p: string, fallback: T): Promise<T> {
   try { return JSON.parse(await fs.readFile(p, 'utf8')) as T } catch { return fallback }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const wisdom  = await safeRead<{ marketResearch?: ResearchFinding[]; funnelFindings?: FunnelFinding[]; cycles?: number }>(WISDOM_PATH, {})
   const revenue = await safeRead<{ pendingListingUpdates?: ListingProposal[] }>(REVENUE_PATH, {})
 
@@ -69,7 +74,10 @@ export async function GET() {
 }
 
 // PATCH /api/market-intel — mark a listing proposal as applied
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.market-intel.patch')
+  if (!authz.ok) return authz.response
+
   const body = await req.json().catch(() => null) as { cycle?: number; applied?: boolean } | null
   if (!body?.cycle) {
     return NextResponse.json({ error: 'cycle is required' }, { status: 400 })

@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -8,7 +10,10 @@ const execAsync = promisify(exec)
 const REPO_ROOT = path.resolve(process.cwd())
 
 // Returns a 365-day heatmap: { date: 'YYYY-MM-DD', commits: N, godCommits: N }
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   if (IS_SERVERLESS) {
     // Zero-filled 365 days with remote flag — component degrades gracefully
     const days = []

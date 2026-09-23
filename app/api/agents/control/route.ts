@@ -1,3 +1,4 @@
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextRequest, NextResponse } from 'next/server'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -17,6 +18,9 @@ function serverlessPayload() {
 }
 
 export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.agents.control.post')
+  if (!authz.ok) return authz.response
+
   if (IS_SERVERLESS) {
     return NextResponse.json({
       ok:    false,
@@ -51,7 +55,10 @@ export async function POST(req: NextRequest) {
 }
 
 // GET /api/agents/control — returns current pm2 status
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   if (IS_SERVERLESS) {
     // Return 200 with an empty list so the UI renders cleanly (just shows
     // "agents: n/a" in the sticky header) instead of throwing a red banner.

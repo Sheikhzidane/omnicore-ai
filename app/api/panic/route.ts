@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import { execSync } from 'node:child_process'
 
@@ -23,7 +25,10 @@ function pm2(action: 'stop' | 'start' | 'restart', target: string): { ok: boolea
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.panic.post')
+  if (!authz.ok) return authz.response
+
   const token = req.headers.get('x-panic-token')
   const expected = process.env.PANIC_TOKEN
   if (!expected) return NextResponse.json({ error: 'PANIC_TOKEN not set in env' }, { status: 501 })
@@ -49,7 +54,10 @@ export async function POST(req: Request) {
   })
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   try {
     const out = execSync('pm2 jlist', { encoding: 'utf8', timeout: 5_000 })
     const list = JSON.parse(out) as Array<{ name: string; pm2_env?: { status?: string } }>

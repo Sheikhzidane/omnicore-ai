@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { NextResponse } from 'next/server'
@@ -21,7 +23,10 @@ function lessonText(e: TriagedBucket | string): string {
   return typeof e === 'string' ? e : e.text
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   if (!existsSync(MEM_DIR)) return NextResponse.json({ entries: [], triaged: null })
 
   const files = readdirSync(MEM_DIR).filter(f => f.endsWith('.json'))

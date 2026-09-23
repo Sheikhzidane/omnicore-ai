@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
@@ -15,7 +17,10 @@ const WORKER_PATH   = join(process.cwd(), 'scripts', 'tts-edge-worker.mjs')
  * layer, breaking WebSocket masking. Spawning a plain Node process bypasses
  * webpack entirely.
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.tts.edge.post')
+  if (!authz.ok) return authz.response
+
   let text: string
   try {
     const body = await req.json()
@@ -71,7 +76,10 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   return NextResponse.json({
     enabled: true,
     voice:   DEFAULT_VOICE,

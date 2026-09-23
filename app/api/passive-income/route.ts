@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 import { readdirSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -9,7 +11,10 @@ export const dynamic = 'force-dynamic'
  * pending setup, what's not wired. Dashboard polls this to show a status
  * grid so the user knows exactly what ONE THING they need to do next.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const env = process.env
 
   // Count auto-generated topic pages (the traffic substrate for all streams)

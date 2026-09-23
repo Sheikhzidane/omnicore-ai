@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -16,7 +18,10 @@ interface NewsItem { source: string; title: string; link: string; pubDate: strin
  * something upstream is breaking before it affects our runs. Parses
  * the minimum — title/link/pubDate only.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const all: NewsItem[] = []
   const results = await Promise.allSettled(FEEDS.map(async f => {
     const res = await fetch(f.url, { next: { revalidate: 300 } })

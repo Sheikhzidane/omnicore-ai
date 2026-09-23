@@ -1,3 +1,5 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminApi, requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +17,10 @@ const MAX_CHARS        = 400
  * - No ELEVENLABS_API_KEY in env → 501; client falls back to browser TTS.
  * - Successful call bumps a char-usage counter the dashboard can read.
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.tts.post')
+  if (!authz.ok) return authz.response
+
   const apiKey = process.env.ELEVENLABS_API_KEY
   if (!apiKey) {
     return NextResponse.json({ error: 'no-key', fallback: 'browser-tts' }, { status: 501 })
@@ -82,7 +87,10 @@ export async function POST(req: Request) {
 
 /** GET returns current config + whether the key is set. Client uses this to
  *  decide whether to attempt the premium path. */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   return NextResponse.json({
     enabled:   Boolean(process.env.ELEVENLABS_API_KEY),
     voiceId:   process.env.ELEVENLABS_VOICE_ID || DEFAULT_VOICE_ID,

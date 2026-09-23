@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     title:       'Watch my AI work · pantheon',
     description: 'Autonomous agents shipping code and SEO content, narrated live by Jarvis.',
     type:        'website',
-    url:         (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://task-dashboard-sigma-three.vercel.app') + '/stream',
+    url:         (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://task-dashboard-sigma-three.vercel.app') + '/ops/stream',
   },
   twitter: { card: 'summary_large_image', title: 'Watch my AI work · pantheon', description: 'Autonomous agents, narrated live.' },
 }

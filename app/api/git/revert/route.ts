@@ -1,3 +1,4 @@
+import { requirePlatformAdminApi } from '@/lib/auth/api'
 import { NextRequest, NextResponse } from 'next/server'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -9,6 +10,9 @@ const REPO_ROOT = path.resolve(process.cwd())
 
 // POST /api/git/revert  — reverts a given commit SHA (creates a new revert commit)
 export async function POST(req: NextRequest) {
+  const authz = await requirePlatformAdminApi(req, 'ops.git.revert.post')
+  if (!authz.ok) return authz.response
+
   if (IS_SERVERLESS) {
     return NextResponse.json({
       ok: false,

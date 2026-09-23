@@ -1,7 +1,12 @@
+import type { NextRequest } from 'next/server'
+import { requirePlatformAdminReadApi } from '@/lib/auth/api'
 import { NextResponse } from 'next/server'
 
 // GET /api/revenue/devto — live stats straight from dev.to API
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authz = await requirePlatformAdminReadApi(req)
+  if (!authz.ok) return authz.response
+
   const key = process.env.DEV_TO_API_KEY
   if (!key) {
     return NextResponse.json({ configured: false, articles: [] })

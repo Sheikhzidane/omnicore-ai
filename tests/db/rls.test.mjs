@@ -131,13 +131,29 @@ test('a user cannot forge platform-admin status', { skip }, async () => {
   })
 })
 
+test('only the service role can sync platform-admin status', { skip }, async () => {
+  await as(c, A, async () => {
+    assert.match(await expectError(c, 'select public.sync_platform_admin($1, true)', [A.userId]), /permission denied/)
+  })
+  await as(c, 'service_role', async () => {
+    await c.query('select public.sync_platform_admin($1, true)', [B.userId])
+    // Same transaction: B now resolves as a platform admin.
+    await c.query('set local role authenticated')
+    await c.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: B.userId, role: 'authenticated' })])
+    assert.equal((await c.query('select public.current_user_is_platform_admin() as ok')).rows[0].ok, true)
+  })
+})
+
 test('legacy ops tables: platform admins only', { skip }, async () => {
   await as(c, A, async () => {
     assert.equal((await c.query('select * from public.todos')).rowCount, 0)
-    assert.match(await expectError(c, `insert into public.todos (title) values ('inject')`), /row-level security/)
+    assert.match(await expectError(c, `insert into public.todos (title) values ('inject')`), /permission denied/)
   })
   await as(c, OPS, async () => {
     assert.equal((await c.query('select * from public.todos')).rowCount, 1)
+    // Even admins cannot approve/modify tasks from the client: writes go
+    // through the audited /api/todos route.
+    assert.match(await expectError(c, `update public.todos set status = 'pending'`), /permission denied/)
     assert.equal((await c.query('select public.current_user_is_platform_admin() as ok')).rows[0].ok, true)
   })
 })
