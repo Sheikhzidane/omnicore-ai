@@ -17,7 +17,8 @@
     "test": "node --test \"scripts/god/*.test.mjs\" && node scripts/blocklist.test.mjs && node --conditions=react-server --import tsx --test \"tests/**/*.test.mjs\" \"tests/**/*.test.ts\"",
     "test:watch": "node --test --watch scripts/god/*.test.mjs",
     "test:db": "node -e \"if(!process.env.TEST_DATABASE_URL){console.error(\\\"TEST_DATABASE_URL is required (disposable Postgres only)\\\");process.exit(1)}\" && node --test \"tests/db/*.test.mjs\"",
-    "check:secrets": "node scripts/check-env-exposure.mjs --require-build"
+    "check:secrets": "node scripts/check-env-exposure.mjs --require-build",
+    "db:types": "node scripts/generate-db-types.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

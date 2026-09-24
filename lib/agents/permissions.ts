@@ -12,21 +12,30 @@ import { PROHIBITED_AUTOMATION } from '@/lib/safety/prohibited'
  */
 
 export const AGENT_CAPABILITIES = {
+  'approvals.request':       { sideEffect: false, description: 'Ask a human to approve a sensitive action' },
+  'tasks.create_internal':   { sideEffect: false, description: 'Create internal tasks for other agents' },
+  'character.propose_memory':{ sideEffect: false, description: 'Propose a (non-canon) character memory' },
+  'trends.research':         { sideEffect: false, description: 'Analyse owner-supplied trend signals and own analytics' },
   'content.ideate':          { sideEffect: false, description: 'Generate content ideas' },
+  'content.plan':            { sideEffect: false, description: 'Plan calendar slots' },
   'content.draft':           { sideEffect: false, description: 'Draft captions/scripts (saved as drafts)' },
+  'content.generate_media_prompt': { sideEffect: false, description: 'Write image/video generation prompts' },
+  'content.generate_media':  { sideEffect: false, description: 'Generate media via a configured provider (budgeted)' },
   'content.review':          { sideEffect: false, description: 'Review drafts against brand rules and policy' },
+  'safety.assess':           { sideEffect: false, description: 'Run safety/policy assessment on content' },
   'content.schedule':        { sideEffect: true,  description: 'Queue APPROVED content for publishing' },
   'content.publish':         { sideEffect: true,  description: 'Publish through a connected, approved adapter' },
   'community.draft_reply':   { sideEffect: false, description: 'Draft replies to comments on own posts' },
+  'community.send_reply':    { sideEffect: true,  description: 'Send an APPROVED reply' },
   'analytics.read':          { sideEffect: false, description: 'Read metrics from connected adapters' },
   'analytics.summarize':     { sideEffect: false, description: 'Summarise performance' },
   'strategy.recommend':      { sideEffect: false, description: 'Recommend strategy / experiments' },
-  'tasks.create_internal':   { sideEffect: false, description: 'Create internal tasks for other agents' },
-  'crm.research_brand':      { sideEffect: false, description: 'Research brand prospects' },
+  'crm.research_brand':      { sideEffect: false, description: 'Research brand prospects (owner-supplied info)' },
   'crm.score_fit':           { sideEffect: false, description: 'Score brand/character fit' },
   'crm.draft_outreach':      { sideEffect: false, description: 'Draft outreach (never sends)' },
   'crm.send_outreach':       { sideEffect: true,  description: 'Send an APPROVED outreach email' },
-  'finance.read_revenue':    { sideEffect: false, description: 'Read the revenue ledger' },
+  'finance.read_revenue':    { sideEffect: false, description: 'Read the revenue/expense ledger' },
+  'finance.summarize':       { sideEffect: false, description: 'Summarise profit/ROI' },
   'finance.draft_invoice_reminder': { sideEffect: false, description: 'Draft an invoice reminder' },
 } as const
 
@@ -44,20 +53,28 @@ export const FORBIDDEN_CAPABILITIES = [
 ] as const
 
 export const ROLE_CAPABILITIES: Record<AgentRole, readonly AgentCapability[]> = {
-  ceo:               ['tasks.create_internal', 'analytics.read', 'analytics.summarize', 'strategy.recommend'],
-  creative_director: ['content.review', 'content.ideate', 'strategy.recommend'],
-  content:           ['content.ideate', 'content.draft'],
-  social:            ['content.schedule', 'content.publish', 'analytics.read'],
-  community:         ['community.draft_reply'],
-  growth:            ['analytics.read', 'analytics.summarize', 'strategy.recommend', 'tasks.create_internal'],
-  sales:             ['crm.research_brand', 'crm.score_fit', 'crm.draft_outreach', 'crm.send_outreach'],
-  analytics:         ['analytics.read', 'analytics.summarize'],
-  finance:           ['finance.read_revenue', 'finance.draft_invoice_reminder'],
+  ceo:               ['approvals.request', 'tasks.create_internal', 'analytics.read', 'analytics.summarize', 'strategy.recommend', 'finance.read_revenue'],
+  character:         ['approvals.request', 'character.propose_memory', 'content.review'],
+  trend_research:    ['approvals.request', 'trends.research', 'content.ideate', 'analytics.read'],
+  creative_director: ['approvals.request', 'content.review', 'content.ideate', 'strategy.recommend'],
+  content_planner:   ['approvals.request', 'content.ideate', 'content.plan', 'tasks.create_internal'],
+  copywriter:        ['approvals.request', 'content.draft'],
+  image_prompt:      ['approvals.request', 'content.generate_media_prompt', 'content.generate_media'],
+  video_script:      ['approvals.request', 'content.draft', 'content.generate_media_prompt'],
+  quality:           ['approvals.request', 'content.review'],
+  safety:            ['approvals.request', 'safety.assess'],
+  publishing:        ['approvals.request', 'content.schedule', 'content.publish', 'analytics.read'],
+  community:         ['approvals.request', 'community.draft_reply', 'community.send_reply'],
+  growth_analyst:    ['approvals.request', 'analytics.read', 'analytics.summarize', 'strategy.recommend', 'tasks.create_internal'],
+  sales:             ['approvals.request', 'crm.research_brand', 'crm.score_fit', 'crm.draft_outreach', 'crm.send_outreach'],
+  finance_analyst:   ['approvals.request', 'finance.read_revenue', 'finance.summarize', 'finance.draft_invoice_reminder'],
 }
 
 export const ROLE_LABELS: Record<AgentRole, string> = {
-  ceo: 'CEO', creative_director: 'Creative Director', content: 'Content', social: 'Social',
-  community: 'Community', growth: 'Growth', sales: 'Sales', analytics: 'Analytics', finance: 'Finance',
+  ceo: 'CEO / Strategy', character: 'Character', trend_research: 'Trend Research', creative_director: 'Creative Director',
+  content_planner: 'Content Planner', copywriter: 'Copywriter', image_prompt: 'Image Prompt', video_script: 'Video Script',
+  quality: 'Quality', safety: 'Safety', publishing: 'Publishing', community: 'Community',
+  growth_analyst: 'Growth Analyst', sales: 'Sales', finance_analyst: 'Finance Analyst',
 }
 
 export type AgentDecision =

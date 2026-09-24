@@ -1,4 +1,4 @@
-import type { CharacterRow, PlatformPublishingPolicyRow } from '@/types/database'
+import type { CharacterRow, PublishingPolicyRow } from '@/types/database'
 
 /**
  * The publish gate. Decides whether an item may be published, and whether a
@@ -10,7 +10,7 @@ export type SafetyStatus = 'unchecked' | 'passed' | 'flagged' | 'blocked'
 
 export interface PublishContext {
   character: Pick<CharacterRow, 'approval_mode' | 'status'>
-  policy: Pick<PlatformPublishingPolicyRow,
+  policy: Pick<PublishingPolicyRow,
     'publishing_enabled' | 'requires_human_approval' | 'max_posts_per_day' | 'min_minutes_between_posts'>
   safetyStatus: SafetyStatus
   disclosureMissing: string[]

@@ -1,4 +1,4 @@
-import type { CharacterRow, PlatformPublishingPolicyRow } from '@/types/database'
+import type { CharacterRow, PublishingPolicyRow } from '@/types/database'
 
 /**
  * AI-character and sponsorship disclosure. Applied to every post before it can
@@ -8,7 +8,7 @@ import type { CharacterRow, PlatformPublishingPolicyRow } from '@/types/database
 export const SPONSORED_TAG = '#ad'
 
 type CharacterDisclosure = Pick<CharacterRow, 'ai_disclosure_mode' | 'disclosure_text'>
-type PlatformDisclosure = Pick<PlatformPublishingPolicyRow, 'ai_label_required'>
+type PlatformDisclosure = Pick<PublishingPolicyRow, 'ai_label_required'>
 
 export interface DisclosureInput {
   caption: string

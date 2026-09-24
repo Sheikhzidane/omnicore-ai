@@ -74,6 +74,7 @@ export async function createMigratedDatabase() {
  */
 export async function as(client, actor, fn) {
   await client.query('begin')
+  client.__inTx = true
   try {
     if (actor === 'anon' || actor === 'service_role') {
       await client.query(`set local role ${actor}`)
@@ -85,6 +86,7 @@ export async function as(client, actor, fn) {
     }
     return await fn(client)
   } finally {
+    client.__inTx = false
     await client.query('rollback')
   }
 }
@@ -94,6 +96,11 @@ export async function as(client, actor, fn) {
  * Wrapped in a savepoint so later statements in the same transaction still run.
  */
 export async function expectError(client, sql, params = []) {
+  if (!client.__inTx) {
+    // Outside a transaction a failed statement doesn't poison anything.
+    try { await client.query(sql, params) } catch (e) { return e.message }
+    throw new Error(`expected the statement to be rejected, but it succeeded: ${sql}`)
+  }
   await client.query('savepoint expect_error')
   try {
     await client.query(sql, params)

@@ -19,6 +19,15 @@ New files use timestamp versions: `YYYYMMDDHHMMSS_description.sql`.
 | `20260923000200_legacy_ops_baseline.sql` | `todos`, `god_status`, `traces`, `subscribers` for the `/ops` dashboard (platform admins only) |
 | `20260923000300_characters_safety.sql` | `characters` (disclosure, approval, age, real-person consent), `content_policies`, `platform_publishing_policies` |
 | `20260923000400_agent_engine.sql` | `agents`, `agent_tasks`, `agent_runs`, `agent_run_events`, `claim_agent_tasks()` |
+| `20260924000100_character_identity.sql` | `character_profiles`, `character_visual_rules`, `character_brand_rules`, `character_memories` (canon needs human confirmation), `character_assets`, plus the `private.apply_workspace_rls()` helper |
+| `20260924000200_storage.sql` | 4 private Storage buckets with size/MIME limits; members read only their workspace folder; no client writes |
+| `20260924000300_social_integrations.sql` | `social_accounts`, `social_credentials_metadata`, `private.social_credential_secrets` (ciphertext; service-role RPCs only), `platform_publishing_policies` renamed to `publishing_policies` (with per-character overrides), `integration_connections`, `webhook_events` (idempotent) |
+| `20260924000400_approvals_agents.sql` | 15-role agent roster; `agent_approvals` with a trigger-enforced state machine (human decision required) |
+| `20260924000500_content.sql` | `campaigns`, `content_ideas`, `content_items` (release gate), `content_versions` (immutable), `content_assets`, `content_calendar`, `campaign_content`, `publishing_jobs`, `publishing_results`, `claim_publishing_jobs()`, `complete_publishing_job()`, `reap_stuck_publishing_jobs()` |
+| `20260924000600_analytics_engagement.sql` | `analytics_daily`, `content_metrics`, `audience_metrics` (real sources only), `engagement_items`, `engagement_replies` (approval before send) |
+| `20260924000700_monetisation.sql` | `brand_contacts` (consent basis), `leads`, `brand_deals` (disclosure mandatory), `affiliate_links`, `products`, `revenue`, `expenses`, `character_financials` view (security_invoker) |
+
+After changing a migration, regenerate the types with `TEST_DATABASE_URL=… npm run db:types`. `tests/db/schema-types.test.mjs` fails if they drift.
 
 ## History: why the legacy chain was archived
 

@@ -25,8 +25,8 @@ before(async () => {
   wsB = (await c.query('select id from public.workspaces where owner_id = $1', [B.userId])).rows[0].id
   charA = (await c.query(`insert into public.characters (workspace_id, name, slug) values ($1, 'Nova', 'nova') returning id`, [wsA])).rows[0].id
   charB = (await c.query(`insert into public.characters (workspace_id, name, slug) values ($1, 'Orion', 'orion') returning id`, [wsB])).rows[0].id
-  await c.query(`insert into public.agents (workspace_id, character_id, role, name) values ($1, $2, 'content', 'A content')`, [wsA, charA])
-  await c.query(`insert into public.agents (workspace_id, character_id, role, name) values ($1, $2, 'content', 'B content')`, [wsB, charB])
+  await c.query(`insert into public.agents (workspace_id, character_id, role, name) values ($1, $2, 'copywriter', 'A copy')`, [wsA, charA])
+  await c.query(`insert into public.agents (workspace_id, character_id, role, name) values ($1, $2, 'copywriter', 'B copy')`, [wsB, charB])
   await c.query(`insert into public.audit_log (workspace_id, actor_type, actor_id, action) values ($1, 'user', $2, 'test.a')`, [wsA, A.userId])
   await c.query(`insert into public.audit_log (workspace_id, actor_type, actor_id, action) values ($1, 'user', $2, 'test.b')`, [wsB, B.userId])
   await c.query(`insert into public.todos (title) values ('legacy ops task')`)
@@ -171,7 +171,7 @@ test('arbitrary-SQL functions from the inherited agents do not exist', { skip },
 test('composite FKs block cross-workspace references (even for the service role)', { skip }, async () => {
   await as(c, 'service_role', async () => {
     const msg = await expectError(c, 
-      `insert into public.agents (workspace_id, character_id, role, name) values ($1, $2, 'growth', 'cross')`, [wsA, charB])
+      `insert into public.agents (workspace_id, character_id, role, name) values ($1, $2, 'growth_analyst', 'cross')`, [wsA, charB])
     assert.match(msg, /foreign key/)
   })
 })
@@ -182,8 +182,8 @@ test('safety constraints are enforced by the database', { skip }, async () => {
       [`update public.characters set ai_disclosure_mode = 'none' where id = $1`, [charA]],
       [`update public.characters set age_restricted = true, min_audience_age = 16 where id = $1`, [charA]],
       [`update public.characters set depicts_real_person = true where id = $1`, [charA]],
-      [`insert into public.platform_publishing_policies (workspace_id, platform, sponsored_disclosure_required) values ($1, 'x', false)`, [wsA]],
-      [`insert into public.platform_publishing_policies (workspace_id, platform, min_minutes_between_posts) values ($1, 'x', 1)`, [wsA]],
+      [`insert into public.publishing_policies (workspace_id, platform, sponsored_disclosure_required) values ($1, 'x', false)`, [wsA]],
+      [`insert into public.publishing_policies (workspace_id, platform, min_minutes_between_posts) values ($1, 'x', 1)`, [wsA]],
     ]
     for (const [sql, params] of bad) {
       await c.query('savepoint s')
