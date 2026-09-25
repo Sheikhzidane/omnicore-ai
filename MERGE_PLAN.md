@@ -1,5 +1,7 @@
 # MERGE_PLAN — omnicore-ai ⇐ creator-crm
 
+> **Historical planning document** (Phase 0). For the current state of the build, see [BUILD_REPORT.md](BUILD_REPORT.md).
+
 **Goal:** turn `omnicore-ai` into an **AI Influencer Autonomous Operating System** by taking the useful architecture and features from `creator-crm`, translated into omnicore-ai's Supabase stack. `omnicore-ai` stays the only application and the only Git repository.
 
 | | |

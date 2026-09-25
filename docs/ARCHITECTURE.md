@@ -1,106 +1,118 @@
 # Architecture
 
-OmniCore is an **AI Influencer Operating System**: one owner runs many fictional AI characters, each with its own content, social accounts, agents, CRM and revenue. This document describes the system after Phase 1. See `MERGE_PLAN.md` for the roadmap.
+Omnicore is an **AI influencer operating system**. One owner, optionally with team members, runs fictional AI characters. Each character has an identity, content pipeline, social accounts, agents, engagement inbox and revenue. Humans stay in control: nothing is published, sent or pitched without approval.
 
 ## Stack
 
 | Layer | Choice |
 |---|---|
-| Web | Next.js **16.3.6** (App Router, Turbopack), React **19.3**, TypeScript 5 (strict), Tailwind 3.4 |
-| Data / auth / storage | **Supabase**: Postgres with RLS, Supabase Auth, Storage |
-| AI | Anthropic SDK 0.128 (Claude). Model routing is centralised in Phase 5. |
-| Validation | zod |
-| Tests | `node:test` + tsx. DB tests run against a disposable Postgres. |
-| Legacy ops agents | Node scripts under PM2 (`ecosystem.config.cjs`), disabled by default |
-
-**Not used:** Drizzle and Neon. creator-crm's data layer is translated into Supabase migrations instead.
+| Web | Next.js 16.3 (App Router, Turbopack, `proxy.ts`), React 19.3, TypeScript strict, Tailwind 3.4 |
+| Data, auth, storage | **Supabase only**: Postgres with RLS, Supabase Auth, Supabase Storage (private buckets) |
+| AI | Provider-neutral interfaces (`lib/ai`). Adapters: Anthropic SDK (text, moderation) and OpenAI HTTP (text, image, video, moderation, embeddings). |
+| Scheduling | Vercel Cron → `/api/cron/*` (bearer `CRON_SECRET`), with Postgres `SKIP LOCKED` queues |
+| Validation | zod 4 on every server action, route handler, agent input/output and webhook mapping |
+| Tests | `node:test` + tsx. Database tests run against a disposable Postgres 16. |
 
 ## Request flow
 
 ```
-browser ──► proxy.ts ──► route policy (lib/auth/routes.ts)
-             │  rate-limit /api/*
-             │  Supabase session validated with the Auth server; cookies refreshed
-             │  public → pass │ user → session required │ ops → platform admin
+browser ──► proxy.ts ── lib/auth/routes.ts policy (default-deny for /api)
+             │  session validated with Supabase Auth; AUTH_ALLOWED_EMAILS enforced
              ▼
-        app/(os)/layout.tsx  requireWorkspace()  ──► pages (RLS-scoped reads)
-        app/(os)/ops/layout  requirePlatformAdmin()
-        app/api/**/route.ts  requirePlatformAdminApi / requireWorkspaceApi  (+ audit_log)
+  app/(os)/layout.tsx  requireWorkspace()           pages read through the RLS-scoped client
+  app/(os)/**/actions.ts  runAction(role, fn)       writes: service role + workspace_id + audit
+  app/api/social/*        requireWorkspaceApi(admin) OAuth connect/callback
+  app/api/cron/*          requireCron()             publishing, agents, metrics
+  app/api/social-webhooks/*, api/webhooks/stripe    signature verified before parsing
              ▼
-        Supabase: RLS by workspace membership; server-only writes via the service role
+  Supabase: RLS by workspace membership; composite (id, workspace_id) FKs; triggers for
+  approval state machine, publishing guard, version immutability, audit append-only
 ```
+
+## Modules
+
+| Module | Code | Tables |
+|---|---|---|
+| Characters | `lib/characters/*`, `app/(os)/characters` | `characters`, `character_profiles`, `character_visual_rules`, `character_brand_rules`, `character_memories`, `character_assets`, `content_policies` |
+| Content | `lib/content/{service,safety,media}.ts`, `app/(os)/content` | `content_ideas`, `content_items`, `content_versions`, `content_assets`, `content_calendar`, `campaigns`, `campaign_content` |
+| Approvals | `lib/approvals/*`, `components/approvals` | `agent_approvals` |
+| Publishing | `lib/publishing/{attempt,worker}.ts`, `lib/scheduling/time.ts` | `publishing_jobs`, `publishing_results`, `publishing_policies` |
+| Social | `lib/social/providers/*`, `lib/social/{oauth,tokens}.ts` | `social_accounts`, `social_credentials_metadata`, `private.social_credential_secrets`, `webhook_events` |
+| Agents | `lib/agents/{definitions,executor,store,supabase-store,runner,permissions}.ts` | `agents`, `agent_tasks`, `agent_runs`, `agent_run_events` |
+| Growth | `lib/analytics/{metrics,sync}.ts`, `app/(os)/growth` | `analytics_daily`, `content_metrics`, `audience_metrics` |
+| Engagement | `app/(os)/engagement`, `lib/webhooks/social.ts` | `engagement_items`, `engagement_replies` |
+| Monetisation | `lib/monetisation/finance.ts`, `lib/payments/stripe.ts`, `lib/email/resend.ts` | `brand_contacts`, `leads`, `brand_deals`, `affiliate_links`, `products`, `revenue`, `expenses`, `character_financials` (view) |
+| Settings | `app/(os)/settings`, `lib/config/integrations.ts`, `lib/ai/registry.ts` | `workspaces`, `workspace_members`, `integration_connections`, `audit_log` |
+| Storage | `lib/storage/{buckets,server}.ts` | buckets `character-assets`, `reference-images`, `generated-content`, `campaign-assets` |
+
+## Content lifecycle
+
+```
+idea ─► content_item (draft) ─► versions (immutable; each edit = new version, resets safety)
+      ─► safety review: rules + moderation → passed | flagged (human clears) | blocked (edit)
+      ─► disclosure applied (AI label, #ad for sponsored) as a new version if missing
+      ─► approval request (publish_content, pinned to version N) ─► human APPROVES
+      ─► publishing_job queued (idempotency key; unique live job per content+account)
+      ─► cron: claim (SKIP LOCKED) → re-check every gate → provider.publish()
+      ─► success: published + result URL │ transient: backoff retry │ permanent: blocked + reason
+```
+
+## Agents
+
+The system has 15 roles: CEO/Strategy, Character, Trend Research, Creative Director, Content Planner, Copywriter, Image Prompt, Video Script, Quality, Safety, Publishing, Community, Growth Analyst, Sales and Finance Analyst.
+
+Each role defines task types in `lib/agents/definitions.ts`. Every task type has:
+- an input schema
+- an output schema (requested as structured JSON, then re-validated)
+- the capabilities it needs
+- a fixed `apply` handler
+
+The executor (`lib/agents/executor.ts`) runs these steps in order:
+1. Authorise every capability.
+2. Validate the input.
+3. Check the budget and the daily action limit.
+4. Build the deterministic character identity prompt (canon memories only).
+5. Call the provider.
+6. Apply the output through `AgentStore`.
+7. Record the run, events and cost.
+
+Side effects are only ever `requestApproval(...)`.
 
 ## Folder structure
 
 ```
-app/
-  (os)/                    authenticated application shell (sidebar layout)
-    dashboard/  characters/[section]  content/[section]  social/[platform]
-    agents/[section]  growth/[section]  crm/[section]  monetisation/[section]  settings/
-    ops/                   legacy Pantheon dashboard, stream, rpc-errors, share (platform admins)
-  login/  auth/callback/  logout/          Supabase Auth
-  api/                     legacy ops APIs (all guarded) + future /api/v1 product APIs
-  about/ contact/ privacy/ subscribe/ topics/ …   public legacy marketing pages
-components/
-  shell/                   sidebar, page header, module pages (new)
-  *.tsx                    legacy Pantheon dashboard widgets (used by /ops)
-lib/
-  auth/                    routes (policy), session (RSC), api (route guards), roles, ops-admin
-  supabase/                client (browser), server (RSC), request (proxy/route), admin (service role), env
-  agents/permissions.ts    character-agent capability model
-  safety/                  policy, disclosure, approval (publish gate), audience, prohibited
-  config/integrations.ts   integration registry (presence-only status)
-  secrets/credentials.ts   AES-256-GCM credential envelope
-  social/adapters.ts       platform adapter interface (all DISCONNECTED)
-  audit.ts                 append-only audit writes
-  nav.ts                   navigation and module sections
-supabase/
-  migrations/              current chain (timestamped) + README
-  legacy-migrations/       inherited 0001–0032, preserved unchanged (not applied)
-  tests/bootstrap.sql      local stand-in for Supabase roles/auth (tests only)
-scripts/                   legacy ops agents + lib-agent-permissions + check-env-exposure
-tests/                     auth, agents, safety, secrets, db (RLS + schema/types)
-types/database.ts          Database type (checked against migrations by tests)
-docs/                      ARCHITECTURE, SECURITY, AGENT_PERMISSIONS
+app/(os)/        dashboard, characters/[id]/*, content/*, social, agents/*, growth/*, engagement/*,
+                 monetisation/*, settings/*, ops/ (legacy, platform admins)
+app/api/         cron/*, social/{connect,callback}/[platform], social-webhooks/[platform],
+                 webhooks/{stripe,[source]}, legacy ops APIs (guarded)
+components/      shell/ (sidebar, tabs, filters), ui/ (forms, tables), approvals/, engagement/
+lib/             ai, agents, analytics, approvals, auth, characters, config, content, data, email,
+                 monetisation, payments, publishing, safety, scheduling, secrets, social, storage,
+                 supabase, webhooks, actions.ts, audit.ts, cron.ts, nav.ts
+supabase/        migrations/ (12 files) + README, tests/bootstrap.sql, legacy-migrations/ (archived)
+tests/           agents, auth, content, db, safety, secrets, social, ui
+docs/            ARCHITECTURE, SECURITY, ENVIRONMENT, DEPLOYMENT, SUPABASE_SETUP, VERCEL_SETUP,
+                 SOCIAL_INTEGRATIONS, AI_PROVIDERS, AGENT_PERMISSIONS, HANDOVER, LOCAL_DEVELOPMENT
+setup/manual/    step-by-step owner guides (supabase, vercel, social, ai-providers)
 ```
-
-## Database (Phase 1 schema)
-
-```
-auth.users ─┬─< workspace_members >── workspaces ──< everything below (workspace_id)
-            └── private.platform_admins                    (ops access, server-managed)
-workspaces ─< content_policies
-           ─< characters ─< agents ─< agent_tasks ─< agent_runs ─< agent_run_events
-           ─< platform_publishing_policies (one per platform)
-           ─< audit_log (append-only; workspace_id null = platform-level)
-legacy ops: todos ─< traces, god_status, subscribers   (platform admins only)
-```
-
-- All ids are UUIDs, with `created_at` / `updated_at` timestamps and indexed foreign keys.
-- Composite `(id, workspace_id)` FKs keep references inside a workspace.
-- New users get one workspace (the V1 single owner) through a trigger. The schema already supports multiple members, with roles `owner`, `admin`, `editor` and `viewer`.
-- Tables still to come (per `MERGE_PLAN.md` §6.3): `character_assets`, `social_accounts` and the private credential store, `content`, `content_queue`, `campaigns`, `analytics`, `brands`, `contacts`, `leads`, `outreach`, `deals`, `revenue`.
-
-## Live database state
-
-This fork has **no live database yet**. The inherited migration chain could never be applied to a new project (see `supabase/migrations/README.md`). The only Supabase project on the owner's account belongs to another application and was not touched.
-
-To go live:
-1. Create a Supabase project.
-2. Run `supabase link` and then `supabase db push`, which applies the 5 migrations in `supabase/migrations/`.
-3. Set the env vars in `.env.local.example`.
-4. Disable public sign-ups in the Supabase dashboard.
-5. Add the owner's email to `AUTH_ALLOWED_EMAILS`, and to `OPS_ADMIN_EMAILS` if you want `/ops` access.
 
 ## Quality gates
 
-`npm run lint` · `npm run typecheck` · `npm test` (+ `npm run test:db` with `TEST_DATABASE_URL`) · `npm run build` · `npm run check:secrets`. CI (`.github/workflows/ci.yml`) runs all of them, and the database job runs the RLS suite in a `postgres:16` service container.
+The repository's quality checks are:
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run test:db` (needs `TEST_DATABASE_URL`)
+- `npm run build`
+- `npm run check:secrets`
+- `npm run check:committed-secrets`
+
+CI runs all of them. The database job runs the migration and RLS suite in a `postgres:16` container. **CI never deploys.**
 
 ## Known debt
 
-- **React Compiler rules:** 31 inherited dashboard files are on `LEGACY_REACT_COMPILER_DEBT` in `eslint.config.mjs` (warnings, not errors). New code gets the full rules.
-- 5 pre-existing `react-hooks/exhaustive-deps` warnings and 23 unused-variable warnings, all in legacy code.
-- ESLint is pinned to 9 because `eslint-config-next` 16.3.6's bundled plugins don't support ESLint 10 yet.
-- There's one low-severity, dev-only esbuild advisory: `tsx` pins it, and it only affects esbuild's Windows dev server.
-- The legacy `/ops` APIs depend on the local filesystem and PM2, so they don't work on serverless hosts.
-- The 107 legacy SEO pages and the AdSense/Gumroad marketing surface remain public, pending an owner decision.
+- The legacy `/ops` area and the Pantheon marketing pages (`/topics`, AdSense) remain. They are admin-only or public, and are candidates for removal.
+- The legacy dashboard carries 63 lint warnings (React Compiler rules on inherited files); new code has none.
+- Rate limiting is in-memory per instance.
+- Account-level analytics (followers, reach) come from owner CSV imports. Only post-level metrics are pulled from platform APIs automatically.

@@ -30,9 +30,9 @@ export const INTEGRATIONS: IntegrationDef[] = [
     requiredEnv: ['CREDENTIALS_ENCRYPTION_KEY'],
     purpose: 'AES-256-GCM encryption of social OAuth tokens at rest' },
   { id: 'anthropic', name: 'Anthropic (Claude)', category: 'ai',
-    requiredEnv: ['ANTHROPIC_API_KEY'], purpose: 'Agent reasoning, content drafting, safety classification' },
+    requiredEnv: ['ANTHROPIC_API_KEY'], purpose: 'Agent reasoning, content drafting; moderation fallback' },
   { id: 'openai', name: 'OpenAI', category: 'ai',
-    requiredEnv: ['OPENAI_API_KEY'], purpose: 'Optional secondary model provider' },
+    requiredEnv: ['OPENAI_API_KEY'], purpose: 'Images, video, moderation and embeddings; optional text provider' },
   { id: 'image_generation', name: 'Image generation', category: 'media',
     requiredEnv: ['OPENAI_API_KEY'],
     purpose: 'Character imagery via the OpenAI Images API (AI_IMAGE_PROVIDER=openai, the default when the key is set)' },
@@ -54,9 +54,9 @@ export const INTEGRATIONS: IntegrationDef[] = [
     requiredEnv: ['X_CLIENT_ID', 'X_CLIENT_SECRET'], purpose: 'Posting to X',
     externalRequirements: 'X developer account; write access depends on the API access tier.' },
   { id: 'stripe', name: 'Stripe', category: 'payments',
-    requiredEnv: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'], purpose: 'Records paid subscription/product revenue from verified webhooks' },
+    requiredEnv: ['STRIPE_WEBHOOK_SECRET'], purpose: 'Records paid subscription/product revenue from verified webhooks' },
   { id: 'resend', name: 'Resend', category: 'email',
-    requiredEnv: ['RESEND_API_KEY'], purpose: 'Sends brand outreach emails a human has approved' },
+    requiredEnv: ['RESEND_API_KEY', 'OUTREACH_FROM_EMAIL'], purpose: 'Sends brand outreach emails a human has approved' },
 ]
 
 export interface IntegrationState {
