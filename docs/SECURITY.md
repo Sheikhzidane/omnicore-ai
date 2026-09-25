@@ -64,7 +64,7 @@ Handlers authenticate **before** parsing request bodies, so anonymous callers le
 
 ## 5. Secrets
 
-- **Server-only** (never `NEXT_PUBLIC_`): `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `GOOGLE_OAUTH_CLIENT_SECRET`, `X_CLIENT_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `IMAGE_GENERATION_API_KEY`, `VIDEO_GENERATION_API_KEY`, `CREDENTIALS_ENCRYPTION_KEY`, `CRON_SECRET`, and the webhook secrets. See `.env.local.example`.
+- **Server-only** (never `NEXT_PUBLIC_`): `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `GOOGLE_OAUTH_CLIENT_SECRET`, `X_CLIENT_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `CREDENTIALS_ENCRYPTION_KEY`, `CRON_SECRET`, and the webhook secrets. See `.env.local.example`.
 - Modules that touch secrets import `server-only` (the admin client, request and server clients, audit, secrets). An accidental client import fails the build.
 - **Integration status** (`lib/config/integrations.ts`) reports only whether each variable is present, never its value. Unset integrations show **NOT CONFIGURED**. Present credentials show "configured (unverified)", and social accounts stay **DISCONNECTED** until an OAuth connection exists.
 - **Social OAuth tokens** (from Phase 2+) are encrypted with AES-256-GCM (`lib/secrets/credentials.ts`: random IV, auth tag, key version) using `CREDENTIALS_ENCRYPTION_KEY`. They will be stored in a table clients cannot read and decrypted only in server memory. The UI only ever sees connection status.
