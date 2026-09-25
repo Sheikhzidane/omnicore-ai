@@ -49,6 +49,11 @@ const RULES: Rule[] = [
   { path: '/api/subscribe', access: 'public', methods: ['POST'], reason: 'newsletter signup; validated + rate-limited' },
   { path: '/api/og', access: 'public', methods: ['GET'], reason: 'Open Graph image rendering' },
   { path: '/api/webhooks/', access: 'public', methods: ['POST'], reason: 'signature/token verified in handler; fails closed' },
+  { path: '/api/social-webhooks/', access: 'public', methods: ['GET', 'POST'], reason: 'platform webhooks: GET subscription handshake, POST signature-verified; fails closed' },
+  { path: '/api/cron/', access: 'public', methods: ['GET'], reason: 'Vercel Cron; CRON_SECRET bearer verified in handler (requireCron); fails closed' },
+
+  // ── Social OAuth (browser redirects; handlers call requireWorkspaceApi) ────
+  { path: '/api/social/', access: 'user' },
 
   // ── Product APIs (workspace-scoped; handlers call requireWorkspaceApi) ─────
   { path: '/api/v1/', access: 'user' },
