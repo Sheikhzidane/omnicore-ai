@@ -1,43 +1,38 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { ModuleIndex, Panel } from '@/components/shell/module-pages'
-import { StatusPill } from '@/components/shell/page-header'
+import { PageHeader, StatusPill } from '@/components/shell/page-header'
+import { DataTable } from '@/components/ui/table'
+import { NoCharacters } from '@/components/shell/character-filter'
 
 export const dynamic = 'force-dynamic'
 
-export default async function CharactersPage() {
+export default async function CharacterLibrary() {
   const supabase = await createClient()
-  const { data: characters } = await supabase
-    .from('characters')
-    .select('id, name, slug, status, approval_mode, ai_disclosure_mode, age_restricted')
-    .order('created_at', { ascending: true })
-
+  const [{ data: chars }, { data: accounts }, { data: agents }] = await Promise.all([
+    supabase.from('characters').select('id, name, slug, status, approval_mode, ai_disclosure_mode, age_restricted, created_at').order('created_at'),
+    supabase.from('social_accounts').select('character_id, platform, status'),
+    supabase.from('agents').select('character_id, status'),
+  ])
+  const rows = (chars ?? []).map(c => ({
+    ...c,
+    connected: (accounts ?? []).filter(a => a.character_id === c.id && a.status === 'connected').map(a => a.platform),
+    activeAgents: (agents ?? []).filter(a => a.character_id === c.id && a.status === 'active').length,
+  }))
   return (
-    <ModuleIndex href="/characters">
-      <Panel title="Character Library" className="mb-6">
-        {characters && characters.length > 0 ? (
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-slate-500">
-              <tr><th className="py-1">Name</th><th>Status</th><th>Approval</th><th>AI disclosure</th><th>Audience</th></tr>
-            </thead>
-            <tbody>
-              {characters.map(c => (
-                <tr key={c.id} className="border-t border-slate-800">
-                  <td className="py-2 text-slate-100">{c.name}</td>
-                  <td><StatusPill tone={c.status === 'active' ? 'ok' : 'off'}>{c.status}</StatusPill></td>
-                  <td className="text-slate-400">{c.approval_mode === 'human_required' ? 'Human required' : 'Auto (low risk)'}</td>
-                  <td className="text-slate-400">{c.ai_disclosure_mode}</td>
-                  <td className="text-slate-400">{c.age_restricted ? '18+' : 'General'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-sm text-slate-500">
-            No characters yet. Character creation arrives in Phase 2 — see <Link className="underline" href="/characters/new">Create Character</Link>.
-          </p>
-        )}
-      </Panel>
-    </ModuleIndex>
+    <>
+      <PageHeader title="Character Library" description="Fictional AI characters in this workspace.">
+        <Link href="/characters/new" className="rounded-md bg-cyan-600 px-3 py-2 text-sm font-medium text-white hover:bg-cyan-500">Create character</Link>
+      </PageHeader>
+      {rows.length === 0 ? <NoCharacters /> : (
+        <DataTable rows={rows} empty="" columns={[
+          { key: 'name', label: 'Character', render: r => <Link href={`/characters/${r.id}`} className="font-medium text-cyan-300 hover:underline">{r.name}</Link> },
+          { key: 'status', label: 'Status', render: r => <StatusPill tone={r.status === 'active' ? 'ok' : r.status === 'paused' ? 'warn' : 'off'}>{r.status}</StatusPill> },
+          { key: 'approval', label: 'Publishing', render: r => r.approval_mode === 'human_required' ? 'Human approval' : 'Auto (low risk)' },
+          { key: 'accounts', label: 'Connected', render: r => r.connected.length ? r.connected.join(', ') : <span className="text-slate-500">none</span> },
+          { key: 'agents', label: 'Active agents', render: r => `${r.activeAgents} / 15` },
+          { key: 'aud', label: 'Audience', render: r => r.age_restricted ? '18+' : 'General' },
+        ]} />
+      )}
+    </>
   )
 }

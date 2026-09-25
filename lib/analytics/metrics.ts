@@ -66,3 +66,8 @@ export function rankContent(items: { id: string; title: string; platform: string
 
 export const formatPct = (v: number | null, digits = 1) => (v === null ? '—' : `${(v * 100).toFixed(digits)}%`)
 export const formatCount = (v: number | null) => (v === null ? '—' : new Intl.NumberFormat('en', { notation: v >= 10_000 ? 'compact' : 'standard' }).format(v))
+
+/** ISO date (YYYY-MM-DD) `n` days before now, UTC. */
+export function daysAgo(n: number, now: Date = new Date()): string {
+  return new Date(now.getTime() - n * 86_400_000).toISOString().slice(0, 10)
+}

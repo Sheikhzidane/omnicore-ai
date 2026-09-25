@@ -1,10 +1,10 @@
 /**
- * Application navigation — the single source for the sidebar and for the
- * module section routes (app/(os)/<module>/[section]). A section's `phase`
- * says when it is scheduled to be built (see MERGE_PLAN.md).
+ * Application navigation — the single source for the sidebar (desktop and
+ * mobile). Every section links to a real page; tests/ui/nav.test.ts checks a
+ * page file exists for each href.
  */
 
-export interface NavSection { slug: string; label: string; phase: number; description: string }
+export interface NavSection { href: string; label: string }
 export interface NavModule {
   href: string
   label: string
@@ -19,56 +19,80 @@ export const NAV: NavModule[] = [
   {
     href: '/characters', label: 'Characters', icon: '◎', description: 'AI characters and their identity',
     sections: [
-      { slug: 'library', label: 'Character Library', phase: 2, description: 'All characters in this workspace.' },
-      { slug: 'new', label: 'Create Character', phase: 2, description: 'Create a new fictional AI character.' },
+      { href: '/characters', label: 'Library' },
+      { href: '/characters/new', label: 'Create' },
     ],
   },
   {
-    href: '/content', label: 'Content Studio', icon: '✎', description: 'Ideas, generation and approvals',
+    href: '/content', label: 'Content Studio', icon: '✎', description: 'Ideas, generation, approval and publishing',
     sections: [
-      { slug: 'ideas', label: 'Ideas', phase: 4, description: 'Content ideas from you and the Content agent.' },
-      { slug: 'calendar', label: 'Content Calendar', phase: 4, description: 'Scheduled posts across platforms.' },
-      { slug: 'generated', label: 'Generated Content', phase: 4, description: 'Drafts produced by agents, with safety results.' },
-      { slug: 'approvals', label: 'Approval Queue', phase: 4, description: 'Everything waiting for a human decision.' },
+      { href: '/content/ideas', label: 'Ideas' },
+      { href: '/content/generator', label: 'Generator' },
+      { href: '/content/assets', label: 'Generated Assets' },
+      { href: '/content/calendar', label: 'Calendar' },
+      { href: '/content/approvals', label: 'Approval Queue' },
+      { href: '/content/publishing', label: 'Publishing Queue' },
+      { href: '/content/history', label: 'History' },
     ],
   },
-  { href: '/social', label: 'Social Accounts', icon: '⌁', description: 'Instagram, TikTok, YouTube, X' },
+  { href: '/social', label: 'Social Accounts', icon: '⌁', description: 'Connect Instagram, TikTok, YouTube and X' },
   {
     href: '/agents', label: 'AI Agents', icon: '⚙', description: 'Agent control centre',
     sections: [
-      { slug: 'tasks', label: 'Tasks', phase: 5, description: 'Agent task queue and approvals.' },
-      { slug: 'logs', label: 'Activity Logs', phase: 5, description: 'Agent runs, tool calls and decisions.' },
+      { href: '/agents', label: 'Control Centre' },
+      { href: '/agents/tasks', label: 'Tasks' },
+      { href: '/agents/runs', label: 'Runs' },
+      { href: '/agents/events', label: 'Event Logs' },
+      { href: '/agents/approvals', label: 'Approval Requests' },
+      { href: '/agents/failures', label: 'Failures' },
     ],
   },
   {
-    href: '/growth', label: 'Growth', icon: '↗', description: 'Analytics and optimisation',
+    href: '/growth', label: 'Growth', icon: '↗', description: 'Analytics from connected platforms',
     sections: [
-      { slug: 'analytics', label: 'Analytics', phase: 6, description: 'Audience and account metrics from connected platforms.' },
-      { slug: 'performance', label: 'Content Performance', phase: 6, description: 'How each post performed.' },
-      { slug: 'experiments', label: 'Experiments', phase: 6, description: 'Structured tests proposed by the Growth agent.' },
-      { slug: 'strategy', label: 'Strategy', phase: 6, description: 'Goals and plans per character.' },
+      { href: '/growth', label: 'Analytics' },
+      { href: '/growth/platforms', label: 'Platform Performance' },
+      { href: '/growth/content', label: 'Content Performance' },
+      { href: '/growth/audience', label: 'Audience Growth' },
+      { href: '/growth/trends', label: 'Trend Intelligence' },
+      { href: '/growth/recommendations', label: 'Recommendations' },
     ],
   },
   {
-    href: '/crm', label: 'CRM', icon: '☷', description: 'Brands, outreach and deals',
+    href: '/engagement', label: 'Engagement', icon: '✉', description: 'Comments, mentions and replies',
     sections: [
-      { slug: 'prospects', label: 'Prospects', phase: 3, description: 'Brand prospects with AI fit scores.' },
-      { slug: 'brands', label: 'Brands', phase: 3, description: 'Brands and their contacts.' },
-      { slug: 'outreach', label: 'Outreach', phase: 3, description: 'Approved, rate-limited, one-to-one outreach.' },
-      { slug: 'pipeline', label: 'Pipeline', phase: 3, description: 'Deal stages from prospect to paid.' },
-      { slug: 'deals', label: 'Deals', phase: 3, description: 'Sponsorship deals and deliverables.' },
+      { href: '/engagement/comments', label: 'Comments' },
+      { href: '/engagement/mentions', label: 'Mentions' },
+      { href: '/engagement/inbox', label: 'Inbox' },
+      { href: '/engagement/suggested', label: 'Suggested Replies' },
+      { href: '/engagement/moderation', label: 'Moderation' },
     ],
   },
   {
-    href: '/monetisation', label: 'Monetisation', icon: '£', description: 'Revenue by source',
+    href: '/monetisation', label: 'Monetisation', icon: '£', description: 'Revenue, deals and costs',
     sections: [
-      { slug: 'affiliate', label: 'Affiliate Revenue', phase: 6, description: 'Disclosed affiliate income.' },
-      { slug: 'sponsorships', label: 'Sponsorships', phase: 6, description: 'Income from sponsorship deals.' },
-      { slug: 'subscriptions', label: 'Subscriptions', phase: 6, description: 'Fan subscriptions and memberships.' },
-      { slug: 'other', label: 'Other Revenue', phase: 6, description: 'Licensing, tips and other income.' },
+      { href: '/monetisation/affiliate', label: 'Affiliate Links' },
+      { href: '/monetisation/sponsorships', label: 'Sponsorships' },
+      { href: '/monetisation/deals', label: 'Brand Deals' },
+      { href: '/monetisation/products', label: 'Products' },
+      { href: '/monetisation/subscriptions', label: 'Subscriptions' },
+      { href: '/monetisation/revenue', label: 'Revenue' },
+      { href: '/monetisation/expenses', label: 'Expenses' },
+      { href: '/monetisation/roi', label: 'Profit / ROI' },
     ],
   },
-  { href: '/settings', label: 'Settings', icon: '⚒', description: 'Workspace, integrations, safety' },
+  {
+    href: '/settings', label: 'Settings', icon: '⚒', description: 'Workspace, providers, policies and audit',
+    sections: [
+      { href: '/settings', label: 'Workspace' },
+      { href: '/settings/users', label: 'Users' },
+      { href: '/settings/ai-providers', label: 'AI Providers' },
+      { href: '/settings/integrations', label: 'Integrations' },
+      { href: '/settings/publishing-policies', label: 'Publishing Policies' },
+      { href: '/settings/safety', label: 'Safety' },
+      { href: '/settings/audit', label: 'Audit Log' },
+    ],
+  },
   { href: '/ops', label: 'Ops', icon: '⌬', description: 'Legacy Pantheon operations (platform admins)', opsOnly: true },
 ]
 
@@ -78,6 +102,7 @@ export function findModule(href: string): NavModule {
   return m
 }
 
-export function findSection(href: string, slug: string): NavSection | undefined {
-  return findModule(href).sections?.find(s => s.slug === slug)
+export function isActive(pathname: string, href: string, exactForModuleRoot = false): boolean {
+  if (exactForModuleRoot) return pathname === href
+  return pathname === href || pathname.startsWith(`${href}/`)
 }

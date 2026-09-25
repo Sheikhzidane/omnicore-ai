@@ -28,18 +28,3 @@ export function StatusPill({ tone, children }: { tone: 'ok' | 'warn' | 'off' | '
   }
   return <span className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium ${tones[tone]}`}>{children}</span>
 }
-
-/** Honest "not built yet" state for modules scheduled in later phases. */
-export function NotBuiltYet({ phase, description }: { phase: number; description: string }) {
-  return (
-    <Panel>
-      <div className="flex items-start gap-3">
-        <StatusPill tone="off">Not built yet</StatusPill>
-        <div className="text-sm text-slate-400">
-          <p>{description}</p>
-          <p className="mt-1 text-xs text-slate-500">Scheduled for Phase {phase} (see MERGE_PLAN.md). No data is shown because none exists — nothing here is simulated.</p>
-        </div>
-      </div>
-    </Panel>
-  )
-}

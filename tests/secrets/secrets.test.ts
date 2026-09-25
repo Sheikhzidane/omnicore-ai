@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { encryptSecret, decryptSecret, loadKey, CredentialVaultNotConfiguredError } from '@/lib/secrets/credentials'
 import { integrationStates, INTEGRATIONS } from '@/lib/config/integrations'
-import { SOCIAL_ADAPTERS, NotConnectedError } from '@/lib/social/adapters'
+import { SOCIAL_PROVIDERS } from '@/lib/social/providers'
 
 const key = randomBytes(32)
 
@@ -48,14 +48,9 @@ test('integrations: unset → NOT CONFIGURED with missing names only; values nev
   assert.equal(integrationStates({ ANTHROPIC_API_KEY: '   ' }).find(s => s.id === 'anthropic')!.status, 'not_configured')
 })
 
-test('social adapters: disconnected, never pretend to publish, no engagement capabilities', async () => {
-  for (const adapter of Object.values(SOCIAL_ADAPTERS)) {
-    const { connection } = adapter.status({})
-    assert.equal(connection, 'not_configured')
-    await assert.rejects(adapter.publish({ caption: 'x', mediaUrls: [], disclosureApplied: true }), NotConnectedError)
-    await assert.rejects(adapter.fetchMetrics(), NotConnectedError)
-    assert.deepEqual([...adapter.capabilities].sort(), ['publish', 'read_own_metrics'])
+test('social providers: unconfigured without app credentials; never build an auth URL without them', () => {
+  for (const p of Object.values(SOCIAL_PROVIDERS)) {
+    assert.equal(p.configured({}), false, p.platform)
+    assert.throws(() => p.authorizationUrl({ state: 's', redirectUri: 'https://a/cb', codeChallenge: 'c' }, {}), p.platform)
   }
-  const configured = SOCIAL_ADAPTERS.instagram.status({ META_APP_ID: 'x', META_APP_SECRET: 'y' })
-  assert.equal(configured.connection, 'disconnected', 'credentials present still means DISCONNECTED until OAuth')
 })

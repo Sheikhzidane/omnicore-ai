@@ -1,5 +1,2 @@
-import { ModuleIndex } from '@/components/shell/module-pages'
-
-export default function Page() {
-  return <ModuleIndex href="/monetisation" />
-}
+import { redirect } from 'next/navigation'
+export default function MonetisationIndex() { redirect('/monetisation/revenue') }
